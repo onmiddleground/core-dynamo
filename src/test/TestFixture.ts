@@ -15,9 +15,9 @@ import {
     TransactionType
 } from "../db/dynamo/DynamoDAO";
 import {IsNotEmpty, IsNumber, validate} from "class-validator";
-import {ServiceResponse} from "@icarus/models";
 import {DocumentClient} from "aws-sdk/clients/dynamodb";
-import {logger} from "@icarus/logger";
+import logger from "../logger";
+import {ServiceResponse} from "../models";
 
 export class TestAccessPattern {
     public static STUDENT_TYPE: string = "_ST";

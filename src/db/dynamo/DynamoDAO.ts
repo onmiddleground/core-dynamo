@@ -1,12 +1,12 @@
 import {DescribeTableOutput, DocumentClient, TransactWriteItemsInput} from "aws-sdk/clients/dynamodb";
-import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "@icarus/models";
-import {logger} from "@icarus/logger";
+import logger from "../../logger";
 import {DAOException} from "../DAOException";
 import {isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
 import {ValidationError} from "class-validator/types/validation/ValidationError";
 
 const AWS = require("aws-sdk");
 import assert = require("assert");
+import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "../../models";
 
 export enum TransactionType {
     PUT, UPDATE, DELETE, CONDITION_EXPRESSION

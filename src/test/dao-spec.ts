@@ -1,9 +1,9 @@
-import {DynamoTools} from "@icarus/dynamo-tools";
+import {DynamoTools} from "@onmiddleground/dynamo-tools";
 import {DynamoDBOptions, QueryOptions} from "../db/dynamo/DynamoDAO";
 import {Student, StudentDAO} from "./StudentFixture";
-import {ServiceResponse, ValidationException} from "@icarus/models";
 import {LikeTest, TestDAO} from "./TestFixture";
 import dayjs = require("dayjs");
+import {ServiceResponse, ValidationException} from "../models";
 
 const jsonData = require("./data.json");
 

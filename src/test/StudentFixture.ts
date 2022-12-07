@@ -12,10 +12,10 @@ import {
     TransactionItem,
     TransactionType
 } from "../db/dynamo/DynamoDAO";
-import {ServiceResponse} from "@icarus/models";
 import {DocumentClient} from "aws-sdk/clients/dynamodb";
 import assert = require("assert");
 import dayjs = require("dayjs");
+import {ServiceResponse} from "../models";
 
 const KSUID = require('ksuid');
 
