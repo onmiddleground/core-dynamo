@@ -20,3 +20,13 @@ export {
 export { DAOException } from "./db/DAOException";
 export { Model, ModelAttribute } from "./db/dynamo/Model";
 
+export {
+    AuthException,
+    ConfigurationException,
+    NotFoundException,
+    ValidationException,
+    ServiceException,
+    DAOResponse,
+    ServiceResponse,
+    HttpResponse
+} from "./models";
