@@ -1,6 +1,6 @@
 import {DynamoTools} from "@onmiddleground/dynamo-tools";
-import {DynamoDBOptions, QueryOptions} from "../db/dynamo/DynamoDAO";
-import {Student, StudentDAO} from "./StudentFixture";
+import {DynamoDBOptions, Entity, QueryOptions} from "../db/dynamo/DynamoDAO";
+import {StudentEntity, StudentDAO} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
 import dayjs = require("dayjs");
 import {ServiceResponse, ValidationException} from "../models";
@@ -73,4 +73,11 @@ describe("DAO Query suite", function () {
         expect(daoResponses[0].getData().length).to.eq(2);
         expect(daoResponses[1].getData().length).to.eq(50);
     });
+
+    it("should test the conversion of Dynamo style data into a friendly object form, delete key values", async () => {
+        const queryOptions: QueryOptions = new QueryOptions([],10,false);
+        let response: ServiceResponse = await studentDAO.findLatest(queryOptions);
+        let serviceResponseFriendly = await Entity.convert(StudentEntity, response);
+        console.log(serviceResponseFriendly);
+    })
 });

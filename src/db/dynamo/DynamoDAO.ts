@@ -179,16 +179,26 @@ export abstract class Entity {
         return this.getAttributes().get(entityColumn.fullName);
     }
 
-    static async convert<E extends Entity, T extends Object>(E: any, T: any, serviceResponse: ServiceResponse): Promise<ServiceResponse> {
+    static async convert<E extends Entity, T extends Object>(E: any, serviceResponse: ServiceResponse, deleteKeyColumns = true): Promise<ServiceResponse> {
         let converted: ServiceResponse;
         const entity = new E;
         const items = serviceResponse.getData().map(data => {
-            const t = new T;
+            const t = Object.create({});
             const keys = Object.keys(data);
             keys.map(key => {
                 const entityAttribute = entity.getAttributeUsingShortName(key);
                 if (entityAttribute) {
                     t[entityAttribute._columnName] = data[key];
+
+                    if (deleteKeyColumns) {
+                        if (entityAttribute.columnAlias === EntityColumnDefinitions.PK.shortAliasName ||
+                            entityAttribute.columnAlias === EntityColumnDefinitions.SK.shortAliasName ||
+                            entityAttribute.columnAlias === EntityColumnDefinitions.GSI1PK.shortAliasName ||
+                            entityAttribute.columnAlias === EntityColumnDefinitions.GSI1SK.shortAliasName ||
+                            entityAttribute.columnAlias === EntityColumnDefinitions.TYPE.shortAliasName
+                        )
+                            delete t[entityAttribute._columnName];
+                    }
                 } else {
                     logger.error(`Could not locate entity attribute on Thread Entity using key ${key}`);
                 }

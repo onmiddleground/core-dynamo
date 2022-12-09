@@ -1,6 +1,6 @@
 import {DynamoTools} from "@onmiddleground/dynamo-tools";
 import {DynamoDBOptions, QueryOptions} from "../db/dynamo/DynamoDAO";
-import {Student, StudentDAO} from "./StudentFixture";
+import {StudentEntity, StudentDAO} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
 import dayjs = require("dayjs");
 import {ServiceResponse, ValidationException} from "../models";
@@ -43,7 +43,7 @@ describe("DAO Create, Update, Delete suite", function () {
 
     it("should create a record in Dynamo for Gary Waddell", async () => {
         const testEmail: string = "garywaddell" + testDomain;
-        const studentEntity: Student = await Student.create(
+        const studentEntity: StudentEntity = await StudentEntity.create(
             "Gary",
             "Waddell",
             testEmail,
@@ -64,7 +64,7 @@ describe("DAO Create, Update, Delete suite", function () {
 
     it("should create an entity for Alex Lifeson", async () => {
         const testEmail: string = "alexlifeson" + testDomain;
-        const studentEntity: Student = await Student.create(
+        const studentEntity: StudentEntity = await StudentEntity.create(
             "Alex",
             "Lifeson",
             testEmail,
@@ -74,7 +74,7 @@ describe("DAO Create, Update, Delete suite", function () {
 
     it("should create an entity for Tom Quayle", async () => {
         const testEmail: string = "tomquayle" + testDomain;
-        const studentEntity: Student = await Student.create(
+        const studentEntity: StudentEntity = await StudentEntity.create(
             "Tom",
             "Quayle",
             testEmail,

@@ -138,7 +138,7 @@ export class StudentDAO extends DynamoDAO {
         return this.query(query, accessPattern);
     }
 
-    async createStudent(obj: Student, validate: boolean = true): Promise<any> {
+    async createStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
         const id = KSUID.randomSync().string;
 
         let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
@@ -154,7 +154,7 @@ export class StudentDAO extends DynamoDAO {
         return super.create(obj, validate, true);
     }
 
-    async txnCreateStudent(obj: Student, validate: boolean = true): Promise<any> {
+    async txnCreateStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
         const id = KSUID.randomSync().string;
 
         let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
@@ -182,7 +182,7 @@ export class StudentAttributeDefinition {
     public static ID = EntityColumn.create("studentId","stid");
 }
 
-export class Student extends Entity {
+export class StudentEntity extends Entity {
     private constructor() {
         super();
         this.registerAttribute(StudentAttributeDefinition.FIRST_NAME);
@@ -198,8 +198,8 @@ export class Student extends Entity {
                                email: string,
                                userName: string,
                                registeredDate: Date = new Date(),
-                               id?: string): Promise<Student> {
-        const studentEntity: Student = new Student();
+                               id?: string): Promise<StudentEntity> {
+        const studentEntity: StudentEntity = new StudentEntity();
         studentEntity.getAttribute(StudentAttributeDefinition.FIRST_NAME).value = firstName;
         studentEntity.getAttribute(StudentAttributeDefinition.LAST_NAME).value = lastName;
         studentEntity.getAttribute(StudentAttributeDefinition.EMAIL).value = email;
