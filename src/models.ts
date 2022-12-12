@@ -57,7 +57,7 @@ export class ServiceResponse {
         return serviceResponse;
     }
 
-    static createSuccess(items: any): ServiceResponse;
+    // static createSuccess(items: any): ServiceResponse;
     static createSuccess(items: any[], nextToken?: string): ServiceResponse {
         const response = new ServiceResponse();
         response.statusCode = 200;
