@@ -674,9 +674,10 @@ export abstract class DynamoDAO {
         return serviceResponse;
     }
 
-    async aggregateIncrementCount(pk: DynamoKeyPair,
-                                  sk: DynamoKeyPair,
-                                  incrementingFieldName: string) {
+    protected async incDecCount(pk: DynamoKeyPair,
+                      sk: DynamoKeyPair,
+                      fieldName: string,
+                      isIncrement: boolean = true) {
         const itemInput: DocumentClient.UpdateItemInput = {
             Key: {
                 [pk.keyName]: pk.keyValue,
@@ -685,16 +686,28 @@ export abstract class DynamoDAO {
             ConditionExpression: `attribute_exists(#${pk.keyName})`,
             TableName: this.getTableName(),
             ExpressionAttributeNames: {
-                ["#" + incrementingFieldName]: incrementingFieldName,
+                ["#" + fieldName]: fieldName,
                 ["#" + pk.keyName]: pk.keyName
             },
-            UpdateExpression: `SET #${incrementingFieldName} = #${incrementingFieldName} + :inc`,
+            UpdateExpression: `SET #${fieldName} = #${fieldName} ${isIncrement ? "+" : "-"} :inc`,
             ExpressionAttributeValues: {
                 ":inc": 1
             }
         }
 
         return itemInput;
+    }
+
+    async aggregateIncrementCount(pk: DynamoKeyPair,
+                                  sk: DynamoKeyPair,
+                                  incrementingFieldName: string) {
+        return this.incDecCount(pk, sk, incrementingFieldName);
+    }
+
+    async aggregateDecrementCount(pk: DynamoKeyPair,
+                                  sk: DynamoKeyPair,
+                                  decrementingFieldName: string) {
+        return this.incDecCount(pk, sk, decrementingFieldName, false);
     }
 
     /**
@@ -786,7 +799,7 @@ export abstract class DynamoDAO {
         }
     }
 
-    public async transaction(transactionItems: TransactionItem[]): Promise<void> {
+    public async transaction(transactionItems: TransactionItem[]): Promise<DocumentClient.TransactWriteItemsOutput> {
         const _txn:TransactWriteItemsInput = {
             TransactItems: []
         };
@@ -803,11 +816,17 @@ export abstract class DynamoDAO {
                     Update: transactionItem.queryInput
                 });
             }
+
+            if (transactionItem.type === TransactionType.DELETE) {
+                _txn.TransactItems.push({
+                    Delete: transactionItem.queryInput
+                });
+            }
         }
 
         const dynamoResponse: DocumentClient.TransactWriteItemsOutput = await this.client.transactWrite(_txn).promise();
-        // const serviceResponse: ServiceResponse = new ServiceResponse();
         logger.info("Transaction Response", dynamoResponse);
+        return dynamoResponse;
     }
 
     protected mapResponse(dynamoResult: DocumentClient.QueryOutput, accessPattern: AccessPattern): ServiceResponse {
