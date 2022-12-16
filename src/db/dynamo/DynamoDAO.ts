@@ -780,23 +780,36 @@ export abstract class DynamoDAO {
      *
      * @param pk
      * @param sk
+     * @param conditionalFields
      */
     protected async getDeleteParams(
         pk: DynamoKeyPair,
-        sk: DynamoKeyPair): Promise<DocumentClient.DeleteItemInput> {
+        sk: DynamoKeyPair,
+        conditionalFields?: string[]): Promise<DocumentClient.DeleteItemInput> {
 
-        return {
+        const param:DocumentClient.DeleteItemInput = {
             Key: {
                 [pk.keyName] : pk.keyValue,
                 [sk.keyName] : sk.keyValue
             },
             TableName: this.getTableName(),
+            ExpressionAttributeNames: {},
             ReturnValues: "ALL_OLD",
-            // ConditionExpression: `attribute_exists(#${pk.keyName})`,
-            // ExpressionAttributeNames: {
-            //     ["#" + pk.keyName]: pk.keyValue,
-            // }
         }
+
+        let conditions: string[] = [];
+        if (conditionalFields && conditionalFields.length > 0) {
+            for (let cf of conditionalFields) {
+                 conditions.push(`attribute_exists(#${cf})`);
+                 param.ExpressionAttributeNames["#" + cf] = cf
+            }
+            if (conditions) {
+                param.ConditionExpression = conditions.join(" and ")
+            }
+
+        }
+
+        return param;
     }
 
     public async transaction(transactionItems: TransactionItem[]): Promise<DocumentClient.TransactWriteItemsOutput> {
