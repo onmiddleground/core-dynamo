@@ -179,11 +179,13 @@ export abstract class Entity {
         return this.getAttributes().get(entityColumn.fullName);
     }
 
-    static async convert<E extends Entity, T extends Object>(E: any, serviceResponse: ServiceResponse, deleteKeyColumns = true): Promise<ServiceResponse> {
+    static async convert<E extends Entity, T extends Object>(E: any, serviceResponse: ServiceResponse,
+                                                             deleteKeyColumns = true,
+                                                             onRecord?: any): Promise<ServiceResponse> {
         let converted: ServiceResponse;
         const entity = new E;
-        const items = serviceResponse.getData().map(data => {
-            const t = Object.create({});
+        let items = serviceResponse.getData().map(data => {
+            let t = Object.create({});
             const keys = Object.keys(data);
             keys.map(key => {
                 const entityAttribute = entity.getAttributeUsingShortName(key);
@@ -194,18 +196,29 @@ export abstract class Entity {
                         if (entityAttribute.columnAlias === EntityColumnDefinitions.PK.shortAliasName ||
                             entityAttribute.columnAlias === EntityColumnDefinitions.SK.shortAliasName ||
                             entityAttribute.columnAlias === EntityColumnDefinitions.GSI1PK.shortAliasName ||
-                            entityAttribute.columnAlias === EntityColumnDefinitions.GSI1SK.shortAliasName ||
-                            entityAttribute.columnAlias === EntityColumnDefinitions.TYPE.shortAliasName
+                            entityAttribute.columnAlias === EntityColumnDefinitions.GSI1SK.shortAliasName
+                            // entityAttribute.columnAlias === EntityColumnDefinitions.TYPE.shortAliasName
                         )
                             delete t[entityAttribute._columnName];
                     }
                 } else {
                     logger.error(`Could not locate entity attribute on Thread Entity using key ${key}`);
                 }
-            })
+            });
 
             return t;
         });
+
+        // Determine if a filter is applied
+        if (items) {
+            items = items.filter(i => {
+                if (onRecord) {
+                    return onRecord(i);
+                } else {
+                    return i;
+                }
+            })
+        }
 
         if (items) {
             converted = ServiceResponse.createSuccess(items,serviceResponse.nextToken);
