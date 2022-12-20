@@ -452,7 +452,7 @@ export abstract class DynamoDAO {
         return queryData;
     }
 
-    public constructor(private readonly dynamoDBOptions: DynamoDBOptions) {
+    public constructor(protected readonly dynamoDBOptions: DynamoDBOptions) {
         assert.ok(dynamoDBOptions);
         this.client = new AWS.DynamoDB.DocumentClient(dynamoDBOptions);
     }
@@ -915,23 +915,4 @@ export abstract class DynamoDAO {
     static parseKey(key: string) {
         return key.split(DynamoDAO.DELIMITER);
     }
-
-    // protected async batchGet(p: any): Promise<any> {
-    //     const params:any = {
-    //         RequestItems: { // map of TableName to list of Key to get from each table
-    //             "students-db" : {
-    //                 Keys : [
-    //                     {
-    //                         "pk": "_TEST",
-    //                         "sk": "_ST"
-    //                     },
-    //                 ],
-    //                 IndexName: "GSItype"
-    //             }
-    //         },
-    //         ReturnConsumedCapacity: 'TOTAL', // optional (NONE | TOTAL | INDEXES)
-    //     };
-    //
-    //     return this.client.batchGet(params).promise();
-    // }
 }
