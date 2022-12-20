@@ -16,6 +16,7 @@ import {DocumentClient} from "aws-sdk/clients/dynamodb";
 import assert = require("assert");
 import dayjs = require("dayjs");
 import {ServiceResponse} from "../models";
+import {isEmail} from "class-validator";
 
 const KSUID = require('ksuid');
 
@@ -177,7 +178,7 @@ export class StudentAttributeDefinition {
     public static FIRST_NAME = EntityColumn.create("firstName","fn");
     public static LAST_NAME = EntityColumn.create("lastName","ln");
     public static USER_NAME = EntityColumn.create("userName","un");
-    public static EMAIL = EntityColumn.create("email","eml");
+    public static EMAIL = EntityColumn.create("email","eml", [isEmail]);
     public static REGISTERED_DATE = EntityColumn.create("registered","regdt");
     public static ID = EntityColumn.create("studentId","stid");
 }

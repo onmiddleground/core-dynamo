@@ -20,20 +20,21 @@ export class TransactionItem {
 export class EntityColumn {
     fullName: string;
     shortAliasName: string;
+    validationRules: any[];
 
     private constructor() {
     }
 
-    public static create(fullName: string, shortAliasName: string) {
+    public static create(fullName: string, shortAliasName: string, ...validationRules: any[]) {
         const entityColumns = new EntityColumn();
         if (!isNotEmpty(fullName) && !isNotEmpty(shortAliasName)) {
             throw new ValidationException("Failed Validation", "Full name and Short Alias name are required fields");
         }
         entityColumns.fullName = fullName;
         entityColumns.shortAliasName = shortAliasName;
+        entityColumns.validationRules = validationRules;
         return entityColumns;
     }
-
 }
 
 export class AccessPatternDefinition {
