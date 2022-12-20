@@ -748,11 +748,11 @@ export abstract class DynamoDAO {
         let expressionAttributeValues: any = {};
 
         items.forEach((attr) => {
-            if (validate) {
-                if (!attr || !attr.value || !attr.columnName || !attr.columnAlias) {
-                    throw new ValidationException(`Failed Validation.  Missing required attributes for ${attr.columnName}.`,attr);
-                }
-            }
+            // if (validate) {
+            //     if (!attr || !attr.value || !attr.columnName || !attr.columnAlias) {
+            //         throw new ValidationException(`Failed Validation.  Missing required attributes for ${attr.columnName}.`,attr);
+            //     }
+            // }
 
             if (attr.type === DynamoAttributeType.DATE || attr.value instanceof Date) {
                 if (!attr.value) {
