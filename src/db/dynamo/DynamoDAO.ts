@@ -1,12 +1,13 @@
 import {DescribeTableOutput, DocumentClient, TransactWriteItemsInput} from "aws-sdk/clients/dynamodb";
 import logger from "../../logger";
 import {DAOException} from "../DAOException";
-import {isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
-import {ValidationError} from "class-validator/types/validation/ValidationError";
+import {isDate, isEmail, isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
+// import {ValidationError} from "class-validator/types/validation/ValidationError";
 
 const AWS = require("aws-sdk");
 import assert = require("assert");
 import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "../../models";
+import * as Assert from "assert";
 
 export enum TransactionType {
     PUT, UPDATE, DELETE, CONDITION_EXPRESSION
@@ -20,20 +21,25 @@ export class TransactionItem {
 export class EntityColumn {
     fullName: string;
     shortAliasName: string;
-    validationRules: any[];
+    type: DynamoAttributeType;
+    validationRule: EntityValidation;
 
-    private constructor() {
-    }
+    private constructor() {}
 
-    public static create(fullName: string, shortAliasName: string, ...validationRules: any[]) {
-        const entityColumns = new EntityColumn();
+    public static create(fullName: string,
+                         shortAliasName: string,
+                         type: DynamoAttributeType = DynamoAttributeType.STRING,
+                         validationRule?: EntityValidation) {
+        const entityColumn = new EntityColumn();
         if (!isNotEmpty(fullName) && !isNotEmpty(shortAliasName)) {
             throw new ValidationException("Failed Validation", "Full name and Short Alias name are required fields");
         }
-        entityColumns.fullName = fullName;
-        entityColumns.shortAliasName = shortAliasName;
-        entityColumns.validationRules = validationRules;
-        return entityColumns;
+        entityColumn.fullName = fullName;
+        entityColumn.shortAliasName = shortAliasName;
+        entityColumn.type = type;
+        entityColumn.validationRule = validationRule;
+
+        return entityColumn;
     }
 }
 
@@ -66,29 +72,24 @@ export enum DynamoAttributeType {
 
 export class EntityAttribute {
     @IsNotEmpty()
-    public readonly _columnName: string;
-
-    @IsNotEmpty()
-    public readonly _columnAlias: string;
+    public readonly entityColumn: EntityColumn;
 
     @IsNotEmpty()
     public _value: any;
 
-    constructor(columnAlias: string,
-                columnName: string,
-                value?: any,
-                public readonly type: DynamoAttributeType = DynamoAttributeType.STRING) {
-        this._columnName = columnName;
-        this._columnAlias = columnAlias;
+    constructor(entityColumn: EntityColumn, value?: any) {
+        Assert.ok(entityColumn, "Entity Column is a required field");
+
+        this.entityColumn = entityColumn;
         this._value = value;
     }
 
     get columnName() {
-        return this._columnName;
+        return this.entityColumn.fullName;
     }
 
     get columnAlias() {
-        return this._columnAlias;
+        return this.entityColumn.shortAliasName;
     }
 
     get value() {
@@ -99,17 +100,79 @@ export class EntityAttribute {
         this._value = v;
     }
 
-    async validate(): Promise<ValidationError[]> {
-        return validate(this);
+    getType() {
+        return this.entityColumn.type;
+    }
+
+    getValidationRule() {
+        return this.entityColumn.validationRule;
+    }
+
+    isValid(): EntityValidation {
+        if (this.getValidationRule()) {
+            if (!this.getValidationRule().isValid(this.value)) {
+                return this.getValidationRule();
+            }
+        }
+    }
+
+    // async validate(): Promise<ValidationError[]> {
+    //     return validate(this);
+    // }
+}
+
+export interface EntityValidation {
+    isValid(value: string): boolean;
+    getMessage(): string;
+}
+
+export const isRequired = (key: string): EntityValidation => {
+    return {
+        getMessage(): string {
+            return `${key} is required`;
+        },
+
+        isValid(value: string): boolean {
+            return isNotEmpty(value);
+        }
     }
 }
 
+export const isValidEmail = (key: string): EntityValidation => {
+    return {
+        getMessage(): string {
+            return `${key} is required and must be a valid email address`;
+        },
+
+        isValid(value: string): boolean {
+            return isNotEmpty(value) && isEmail(value);
+        }
+    }
+}
+
+export const isValidDate = (key: string): EntityValidation => {
+    return {
+        getMessage(): string {
+            return `${key} is required and must be a valid email address`;
+        },
+
+        isValid(value: string): boolean {
+            return isNotEmpty(value) && isDate(value);
+        }
+    }
+}
+
+export interface ValidationError {
+    message: string;
+    fieldName: string;
+}
+
 export class EntityColumnDefinitions {
-    public static PK = EntityColumn.create("pk", "pk");
-    public static SK = EntityColumn.create("sk", "sk");
-    public static TYPE = EntityColumn.create("type", "type");
-    public static CREATED_AT = EntityColumn.create("createdAt", "cadt");
-    public static UPDATED_AT = EntityColumn.create("updatedAt", "uadt");
+    public static PK = EntityColumn.create("pk", "pk", DynamoAttributeType.STRING, isRequired("pk"));
+    public static SK = EntityColumn.create("sk", "sk", DynamoAttributeType.STRING, isRequired("sk"));
+    public static TYPE = EntityColumn.create("type", "type", DynamoAttributeType.STRING);
+    public static CREATED_AT = EntityColumn.create("createdAt", "cadt", DynamoAttributeType.STRING);
+    public static UPDATED_AT = EntityColumn.create("updatedAt", "uadt", DynamoAttributeType.STRING);
     public static GSI1PK = EntityColumn.create("GSI1pk", "GSI1pk");
     public static GSI1SK = EntityColumn.create("GSI1sk", "GSI1sk");
 }
@@ -128,12 +191,12 @@ export abstract class Entity {
         this.registerAttribute(EntityColumnDefinitions.GSI1SK);
     }
 
-    public registerAttribute(entityColumns: EntityColumn, value?: any, useShortNameAsKey: boolean = true): EntityAttribute {
-        const entityAttribute: EntityAttribute = new EntityAttribute(entityColumns.shortAliasName, entityColumns.fullName, value);
+    public registerAttribute(entityColumn: EntityColumn, value?: any, useShortNameAsKey: boolean = true): EntityAttribute {
+        const entityAttribute: EntityAttribute = new EntityAttribute(entityColumn,value);
         if (useShortNameAsKey) {
-            this.attributes.set(entityColumns.shortAliasName, entityAttribute);
+            this.attributes.set(entityColumn.shortAliasName, entityAttribute);
         } else {
-            this.attributes.set(entityColumns.fullName, entityAttribute);
+            this.attributes.set(entityColumn.fullName, entityAttribute);
         }
         return entityAttribute;
     }
@@ -325,10 +388,21 @@ export abstract class Entity {
     /**
      * Throws a ValidationException when not valid containing the status code and validation errors.
      */
-    async isValid(obj: Entity): Promise<void> {
-        const errors = await validate(obj || this);
+    async validate(): Promise<void> {
+        let isValid: boolean = false;
+        const errors: ValidationError[] = [];
+        this.getAttributes().forEach( (ea: EntityAttribute) => {
+            if (ea.getValidationRule()) {
+                if (!ea.getValidationRule().isValid(ea.value)) {
+                    errors.push({
+                        message: ea.getValidationRule().getMessage(),
+                        fieldName: ea.columnName
+                    });
+                }
+            }
+        })
         if (errors.length > 0) {
-            throw new ValidationException("Failed Validation", errors, 400);
+            throw new ValidationException("Failed Validation", errors);
         }
     }
 }
@@ -419,7 +493,6 @@ export class QueryOptions {
 
 export enum DynamoIndex {
     GSI_SK = "GSIsk",
-    // GSI_TYPE = "GSItype",
     GSI_PK1 = "GSI1pk"
 }
 
@@ -614,7 +687,9 @@ export abstract class DynamoDAO {
     }
 
     protected async getCreateParams<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<DocumentClient.PutItemInput> {
-        await obj.isValid(obj);
+        if (validate) {
+            await obj.validate();
+        }
 
         const now = new Date().toISOString();
 
@@ -755,7 +830,7 @@ export abstract class DynamoDAO {
             //     }
             // }
 
-            if (attr.type === DynamoAttributeType.DATE || attr.value instanceof Date) {
+            if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
                 if (!attr.value) {
                     attr.value = now;
                 } else {

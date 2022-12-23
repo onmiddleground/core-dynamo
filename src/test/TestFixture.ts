@@ -20,9 +20,9 @@ import logger from "../logger";
 import {ServiceResponse} from "../models";
 
 export class TestAccessPattern {
-    public static STUDENT_TYPE: string = "_ST";
-    public static TEST_TYPE: string = "_TEST";
-    public static LIKE_TEST_TYPE: string = "_LIKTEST";
+    public static STUDENT_TYPE: string = "ST";
+    public static TEST_TYPE: string = "TEST";
+    public static LIKE_TEST_TYPE: string = "LIKTEST";
 
     public static likeStudentTestDefinition(testId: string, studentId: string): AccessPatternDefinition {
         return new AccessPatternDefinition(
@@ -222,9 +222,9 @@ export class LikeTest extends Entity {
         return this.studentId.value;
     }
 
-    async isValid(): Promise<void> {
-        return super.isValid(this);
-    }
+    // async isValid(): Promise<void> {
+    //     return super.isValid(this);
+    // }
 }
 
 export class TestDTO {
@@ -292,8 +292,8 @@ export class TestEntity extends Entity {
         return this.getAttribute(TestAttributeDefinition.PASSING_MARK).value;
     }
 
-    async isValid(): Promise<void> {
-        return super.isValid(this);
-    }
+    // async isValid(): Promise<void> {
+    //     return super.isValid(this);
+    // }
 }
 

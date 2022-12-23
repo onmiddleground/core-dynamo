@@ -14,7 +14,7 @@ chai.use(chaiAsPromised);
 
 describe("DAO Create, Update, Delete suite", function () {
     this.timeout(0);
-    const tableName: string = "students-db";
+    const tableName: string = "students-test-db";
     const testDomain: string = "@gmail.com"; // Just fake a domain name
     let dynamoDbOptions: DynamoDBOptions = new DynamoDBOptions(tableName);
     dynamoDbOptions.enableLocal();
@@ -41,26 +41,47 @@ describe("DAO Create, Update, Delete suite", function () {
         expect(testDAO1.validate()).to.be.rejected;
     });
 
-    it("should create a record in Dynamo for Gary Waddell", async () => {
-        const testEmail: string = "garywaddell" + testDomain;
+    it("should create a record in Dynamo for Joe Boxer", async () => {
+        const testEmail: string = "joeboxer" + testDomain;
         const studentEntity: StudentEntity = await StudentEntity.create(
-            "Gary",
-            "Waddell",
+            "Joe",
+            "Boxer",
             testEmail,
-            "gwaddell");
+            "jboxer");
         const created = await studentDAO.createStudent(studentEntity);
         expect(created).to.not.be.undefined;
     });
 
-    // it("should fail validation when creating a record in Dynamo for Gary because of missing last name", async () => {
-    //     const testEmail: string = "garywaddell" + testDomain;
-    //     const studentEntity: Student = await Student.create(
-    //         "Gary",
-    //         undefined,
-    //         testEmail,
-    //         "gwaddell");
-    //     await expect(studentDAO.createStudent(studentEntity)).to.be.rejectedWith(ValidationException);
-    // });
+    it("should fail validation when creating a record in Dynamo for Joe because of missing last name", async () => {
+        const testEmail: string = "joeboxer" + testDomain;
+        const studentEntity: StudentEntity = await StudentEntity.create(
+            "Joe",
+            undefined,
+            testEmail,
+            "jboxer");
+        await expect(studentDAO.createStudent(studentEntity)).to.be.rejectedWith(ValidationException);
+    });
+
+    it("should fail validation when creating a record in Dynamo for Joe because of an invalid email", async () => {
+        const testEmail: string = "joeboxer";
+        const studentEntity: StudentEntity = await StudentEntity.create(
+            "Joe",
+            "Boxer",
+            testEmail,
+            "jboxer");
+        await expect(studentDAO.createStudent(studentEntity)).to.be.rejectedWith(ValidationException);
+    });
+
+    it("should fail validation when creating a record in Dynamo for Joe because of an invalid registered date", async () => {
+        const testEmail: string = "joeboxer" + testDomain;
+        const studentEntity: StudentEntity = await StudentEntity.create(
+            "Joe",
+            "Boxer",
+            testEmail,
+            "jboxer"
+        );
+        await expect(studentDAO.createStudent(studentEntity)).to.be.rejectedWith(ValidationException);
+    });
 
     it("should create an entity for Alex Lifeson", async () => {
         const testEmail: string = "alexlifeson" + testDomain;

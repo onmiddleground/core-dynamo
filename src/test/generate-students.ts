@@ -6,7 +6,7 @@
     for (let i = 0; i < 50; i++) {
         const ksuid = KSUID.randomSync().string;
         let data:any = {};
-        const type = "_ST";
+        const type = "ST";
         const lastName = faker.name.lastName();
         const userName = faker.internet.userName(undefined, lastName).toUpperCase();
         const email = faker.internet.email();

@@ -1,10 +1,10 @@
 import {
     AccessPattern,
-    AccessPatternDefinition,
+    AccessPatternDefinition, DynamoAttributeType,
     DynamoDAO,
     DynamoIndex,
     Entity,
-    EntityColumn,
+    EntityColumn, EntityColumnDefinitions, EntityValidation, isRequired, isValidDate, isValidEmail,
     PartitionKeyExpression,
     QueryExpressionOperator,
     QueryOptions,
@@ -16,7 +16,7 @@ import {DocumentClient} from "aws-sdk/clients/dynamodb";
 import assert = require("assert");
 import dayjs = require("dayjs");
 import {ServiceResponse} from "../models";
-import {isEmail} from "class-validator";
+import {isDate, isEmail, isNotEmpty} from "class-validator";
 
 const KSUID = require('ksuid');
 
@@ -65,7 +65,7 @@ export class StudentAccessPatternDefinition {
 }
 
 export class StudentAccessPattern {
-    public static TYPE: string = "_ST";
+    public static TYPE: string = "ST";
 
     /**
      * Use the Student ID Access Pattern.
@@ -81,7 +81,7 @@ export class StudentAccessPattern {
     }
 
     /**
-     * Get the latest Students  Type=_ST
+     * Get the latest Students  Type=ST
      */
     public static all(): AccessPattern {
         // Don't pass the registered date so we can use the wild card BEGINS_WITH operator
@@ -140,34 +140,19 @@ export class StudentDAO extends DynamoDAO {
     }
 
     async createStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        const id = KSUID.randomSync().string;
-
-        let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
-        obj.setPk(accessPatternDefinition.pk);
-        obj.setSk(accessPatternDefinition.sk);
-        obj.setType(StudentAccessPattern.TYPE);
-
-        accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id,obj.getRegisteredDate());
-        obj.setGSI1Pk(accessPatternDefinition.pk);
-        obj.setGSI1Sk(accessPatternDefinition.sk)
-
-        obj.setId(id);
+        // const id = KSUID.randomSync().string;
+        // let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
+        // obj.setPk(accessPatternDefinition.pk);
+        // obj.setSk(accessPatternDefinition.sk);
+        // obj.setType(StudentAccessPattern.TYPE);
+        // accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id,obj.getRegisteredDate());
+        // obj.setGSI1Pk(accessPatternDefinition.pk);
+        // obj.setGSI1Sk(accessPatternDefinition.sk)
+        // obj.setId(id);
         return super.create(obj, validate, true);
     }
 
     async txnCreateStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        const id = KSUID.randomSync().string;
-
-        let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
-        obj.setPk(accessPatternDefinition.pk);
-        obj.setSk(accessPatternDefinition.sk);
-        obj.setType(StudentAccessPattern.TYPE);
-
-        accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id,obj.getRegisteredDate());
-        obj.setGSI1Pk(accessPatternDefinition.pk);
-        obj.setGSI1Sk(accessPatternDefinition.sk)
-
-        obj.setId(id);
         const itemInput:DocumentClient.PutItemInput = await this.getCreateParams(obj, validate, true);
         const transactionItem: TransactionItem = new TransactionItem(itemInput,TransactionType.PUT);
         return super.transaction([transactionItem]);
@@ -175,12 +160,12 @@ export class StudentDAO extends DynamoDAO {
 }
 
 export class StudentAttributeDefinition {
-    public static FIRST_NAME = EntityColumn.create("firstName","fn");
-    public static LAST_NAME = EntityColumn.create("lastName","ln");
-    public static USER_NAME = EntityColumn.create("userName","un");
-    public static EMAIL = EntityColumn.create("email","eml", [isEmail]);
-    public static REGISTERED_DATE = EntityColumn.create("registered","regdt");
-    public static ID = EntityColumn.create("studentId","stid");
+    public static FIRST_NAME = EntityColumn.create("firstName","fn", DynamoAttributeType.STRING, isRequired("First Name"));
+    public static LAST_NAME = EntityColumn.create("lastName","ln", DynamoAttributeType.STRING, isRequired("Last Name"));
+    public static USER_NAME = EntityColumn.create("userName","un", DynamoAttributeType.STRING);
+    public static EMAIL = EntityColumn.create("email","eml", DynamoAttributeType.STRING, isValidEmail("Email Address"));
+    public static REGISTERED_DATE = EntityColumn.create("registered","regdt", DynamoAttributeType.DATE, isValidDate("Registered Date"));
+    public static ID = EntityColumn.create("studentId","stid", DynamoAttributeType.STRING);
 }
 
 export class StudentEntity extends Entity {
@@ -194,12 +179,28 @@ export class StudentEntity extends Entity {
         this.registerAttribute(StudentAttributeDefinition.ID);
     }
 
+    protected setCoreDefaults(id: string) {
+        const now = new Date();
+        let accessPatternDefinition: AccessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
+        this.getAttribute(EntityColumnDefinitions.PK).value = accessPatternDefinition.pk;
+        this.getAttribute(EntityColumnDefinitions.SK).value = accessPatternDefinition.sk;
+        this.getAttribute(EntityColumnDefinitions.CREATED_AT).value = now.toISOString();
+        this.getAttribute(EntityColumnDefinitions.UPDATED_AT).value = now.toISOString();
+        this.getAttribute(EntityColumnDefinitions.TYPE).value = StudentAccessPattern.TYPE;
+
+        accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id, now);
+        this.getAttribute(EntityColumnDefinitions.GSI1PK).value = accessPatternDefinition.pk;
+        this.getAttribute(EntityColumnDefinitions.GSI1SK).value = accessPatternDefinition.sk;
+    }
+
     public static async create(firstName: string,
                                lastName: string,
                                email: string,
                                userName: string,
                                registeredDate: Date = new Date(),
                                id?: string): Promise<StudentEntity> {
+        let studentId;
+
         const studentEntity: StudentEntity = new StudentEntity();
         studentEntity.getAttribute(StudentAttributeDefinition.FIRST_NAME).value = firstName;
         studentEntity.getAttribute(StudentAttributeDefinition.LAST_NAME).value = lastName;
@@ -207,8 +208,12 @@ export class StudentEntity extends Entity {
         studentEntity.getAttribute(StudentAttributeDefinition.USER_NAME).value = userName;
         studentEntity.getAttribute(StudentAttributeDefinition.REGISTERED_DATE).value = registeredDate;
         if (id) {
-            studentEntity.getAttribute(StudentAttributeDefinition.ID).value = lastName;
+            studentId = id;
+        } else {
+            studentId = KSUID.randomSync().string;
         }
+        studentEntity.getAttribute(StudentAttributeDefinition.ID).value = studentId;
+        studentEntity.setCoreDefaults(studentId);
 
         return studentEntity;
     }
@@ -237,9 +242,9 @@ export class StudentEntity extends Entity {
         this.getAttribute(StudentAttributeDefinition.ID).value = id;
     }
 
-    async isValid(): Promise<void> {
-        return super.isValid(this);
-    }
+    // async isValid(): Promise<void> {
+    //     return super.isValid(this);
+    // }
 }
 
 

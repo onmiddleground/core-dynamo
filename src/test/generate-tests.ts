@@ -6,7 +6,7 @@
     for (let i = 0; i < 50; i++) {
         const ksuid = KSUID.randomSync().string;
         let data:any = {};
-        const type = "_TEST";
+        const type = "TEST";
         const testName = faker.music.genre();
         const passingMark = faker.datatype.number(100);
         const created = faker.date.between("04/01/2020","04/30/2021").toISOString();
