@@ -1,9 +1,9 @@
 import {DynamoTools} from "@onmiddleground/dynamo-tools";
 import {DynamoDBOptions, Entity, QueryOptions} from "../db/dynamo/DynamoDAO";
-import {StudentEntity, StudentDAO} from "./StudentFixture";
-import {LikeTest, TestDAO} from "./TestFixture";
+import {StudentDAO, StudentEntity} from "./StudentFixture";
+import {TestDAO} from "./TestFixture";
+import {ServiceResponse} from "../models";
 import dayjs = require("dayjs");
-import {ServiceResponse, ValidationException} from "../models";
 
 const jsonData = require("./data.json");
 
@@ -14,8 +14,7 @@ chai.use(chaiAsPromised);
 
 describe("DAO Query suite", function () {
     this.timeout(0);
-    const tableName: string = "students-db";
-    const testDomain: string = "@gmail.com"; // Just fake a domain name
+    const tableName: string = "students-test-db";
     let dynamoDbOptions: DynamoDBOptions = new DynamoDBOptions(tableName);
     dynamoDbOptions.enableLocal();
     let studentDAO: StudentDAO;
@@ -34,6 +33,11 @@ describe("DAO Query suite", function () {
     });
 
     it("just load seeded data", async () => {});
+
+    it("should fetch 2 sets of results using batch get", async () => {
+        const studentId: string = "1vlsmURaN4E7HmKeinJDUD4TpnU";
+        let serviceResponse = await studentDAO.findStudentAndTheirTests(studentId);
+    })
 
     it("should get the most current Students", async () => {
         let daoResponse: ServiceResponse = await studentDAO.findLatest();

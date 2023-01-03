@@ -18,6 +18,7 @@ import {IsNotEmpty, IsNumber, validate} from "class-validator";
 import {DocumentClient} from "aws-sdk/clients/dynamodb";
 import logger from "../logger";
 import {ServiceResponse} from "../models";
+import {StudentAccessPattern, StudentEntity} from "./StudentFixture";
 
 export class TestAccessPattern {
     public static STUDENT_TYPE: string = "ST";
@@ -28,6 +29,13 @@ export class TestAccessPattern {
         return new AccessPatternDefinition(
             DynamoDAO.createKey(TestAccessPattern.TEST_TYPE,testId),
             DynamoDAO.createKey(TestAccessPattern.LIKE_TEST_TYPE,TestAccessPattern.STUDENT_TYPE,studentId)
+        );
+    }
+
+    public static studentTestsDefinition(studentId: string): AccessPatternDefinition {
+        return new AccessPatternDefinition(
+            DynamoDAO.createKey(TestAccessPattern.STUDENT_TYPE,studentId),
+            DynamoDAO.createKey(this.TEST_TYPE)
         );
     }
 
@@ -58,11 +66,7 @@ export class TestAccessPattern {
     }
 
     public static studentTests(studentId: string): AccessPattern {
-        let accessPatternDefinition: AccessPatternDefinition = new AccessPatternDefinition(
-            DynamoDAO.createKey(TestAccessPattern.STUDENT_TYPE,studentId),
-            DynamoDAO.createKey(this.TEST_TYPE)
-        );
-
+        const accessPatternDefinition: AccessPatternDefinition = this.studentTestsDefinition(studentId);
         return AccessPattern.create(
             new PartitionKeyExpression("pk",QueryExpressionOperator.EQ,accessPatternDefinition.pk),
             new SortKeyExpression("sk",QueryExpressionOperator.BEGINS_WITH,accessPatternDefinition.sk));
@@ -101,6 +105,33 @@ export class TestDAO extends DynamoDAO {
         query = await this.findByAccessPattern(accessPatternTests, queryOptions);
         promises.push(this.query(query, accessPatternTests));
         return Promise.all(promises);
+    }
+
+    /**
+     * Example executing 2 gets by access patterns in parallel that are not supported by batchGet
+     *
+     * @param studentId
+     */
+    async getStudentDetailsAndTests(studentId: string): Promise<ServiceResponse> {
+        const accessPatterns: AccessPattern[] = [StudentAccessPattern.id(studentId), TestAccessPattern.studentTests(studentId)];
+
+        let promises: any[] = [];
+        for (let ap of accessPatterns) {
+            const qi = await this.findByAccessPattern(ap);
+            promises.push(this.query(qi, ap));
+        }
+
+        const responses: ServiceResponse[] = await Promise.all(promises);
+        const response: ServiceResponse = new ServiceResponse();
+        if (responses) {
+            for (let sr of responses) {
+                let converted = await Entity.convert(StudentEntity, sr);
+                for (let data of converted.getData()) {
+                    response.addData(data);
+                }
+            }
+        }
+        return response;
     }
 
     async findTestLikes(testId: string, queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<ServiceResponse> {
@@ -163,7 +194,7 @@ export class TestDAO extends DynamoDAO {
             const transactionItems: TransactionItem[] = [
                 {
                     type: TransactionType.PUT,
-                    queryInput: await this.getCreateParams(obj,validate,true)
+                    queryInput: await this.getCreateTemplate(obj)
                 },
                 {
                     type: TransactionType.UPDATE,

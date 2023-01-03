@@ -1,8 +1,7 @@
 import {DynamoTools} from "@onmiddleground/dynamo-tools";
-import {DynamoDBOptions, QueryOptions} from "../db/dynamo/DynamoDAO";
-import {StudentEntity, StudentDAO} from "./StudentFixture";
+import {DynamoDBOptions} from "../db/dynamo/DynamoDAO";
+import {StudentDAO, StudentEntity} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
-import dayjs = require("dayjs");
 import {ServiceResponse, ValidationException} from "../models";
 
 const jsonData = require("./data.json");
@@ -38,7 +37,7 @@ describe("DAO Create, Update, Delete suite", function () {
     it("should fail when the table does not exist", async () => {
         let dynamoDbOptions: DynamoDBOptions = new DynamoDBOptions("non-existing-table");
         let testDAO1 = new StudentDAO(dynamoDbOptions);
-        expect(testDAO1.validate()).to.be.rejected;
+        expect(testDAO1.tableExists()).to.be.rejected;
     });
 
     it("should create a record in Dynamo for Joe Boxer", async () => {
@@ -130,5 +129,12 @@ describe("DAO Create, Update, Delete suite", function () {
             let response:ServiceResponse = await testDAO.deleteTest(testId);
             expect(response.statusCode).to.eq(404);
         });
+
+        it("should get the student and test details in parallel", async () => {
+            const studentId: string = "1vlsmURaN4E7HmKeinJDUD4TpnU";
+            let serviceResponse = await testDAO.getStudentDetailsAndTests(studentId);
+            expect(serviceResponse.getData().length).to.eq(3);
+        });
+
     });
 });

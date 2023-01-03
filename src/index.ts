@@ -15,7 +15,12 @@ export {
     QueryExpressionOperator,
     DynamoExpression,
     PartitionKeyExpression,
-    DynamoIndex
+    DynamoIndex,
+    isRequired,
+    isValidDate,
+    isValidEmail,
+    DynamoAttributeType,
+    DynamoKeyPair
 } from "./db/dynamo/DynamoDAO";
 export { DAOException } from "./db/DAOException";
 export { Model, ModelAttribute } from "./db/dynamo/Model";

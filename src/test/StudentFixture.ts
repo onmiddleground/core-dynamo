@@ -1,10 +1,15 @@
 import {
     AccessPattern,
-    AccessPatternDefinition, DynamoAttributeType,
+    AccessPatternDefinition,
+    DynamoAttributeType,
     DynamoDAO,
     DynamoIndex,
     Entity,
-    EntityColumn, EntityColumnDefinitions, EntityValidation, isRequired, isValidDate, isValidEmail,
+    EntityColumn,
+    EntityColumnDefinitions,
+    isRequired,
+    isValidDate,
+    isValidEmail,
     PartitionKeyExpression,
     QueryExpressionOperator,
     QueryOptions,
@@ -12,11 +17,10 @@ import {
     TransactionItem,
     TransactionType
 } from "../db/dynamo/DynamoDAO";
-import {DocumentClient} from "aws-sdk/clients/dynamodb";
+import {BatchGetItemInput, DocumentClient} from "aws-sdk/clients/dynamodb";
+import {ServiceResponse} from "../models";
 import assert = require("assert");
 import dayjs = require("dayjs");
-import {ServiceResponse} from "../models";
-import {isDate, isEmail, isNotEmpty} from "class-validator";
 
 const KSUID = require('ksuid');
 
@@ -127,6 +131,16 @@ export class StudentDAO extends DynamoDAO {
         return this.query(query, accessPattern);
     }
 
+    // TODO: Needs addition of more batch operations to be useful
+    async findStudentAndTheirTests(studentId: string, queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<any> {
+        const accessPatterns: AccessPattern[] = [
+            StudentAccessPattern.id(studentId)
+        ];
+
+        const batchGetTemplate: BatchGetItemInput = this.getBatchGetTemplate(accessPatterns);
+        return this.batchGet(batchGetTemplate);
+    }
+
     async findById(studentId: string, nextPage?: string) {
         const accessPattern = StudentAccessPattern.id(studentId);
         const query = await this.findByAccessPattern(accessPattern,new QueryOptions([], 100, false, nextPage));
@@ -153,7 +167,7 @@ export class StudentDAO extends DynamoDAO {
     }
 
     async txnCreateStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        const itemInput:DocumentClient.PutItemInput = await this.getCreateParams(obj, validate, true);
+        const itemInput:DocumentClient.PutItemInput = await this.getCreateTemplate(obj);
         const transactionItem: TransactionItem = new TransactionItem(itemInput,TransactionType.PUT);
         return super.transaction([transactionItem]);
     }
@@ -179,20 +193,6 @@ export class StudentEntity extends Entity {
         this.registerAttribute(StudentAttributeDefinition.ID);
     }
 
-    protected setCoreDefaults(id: string) {
-        const now = new Date();
-        let accessPatternDefinition: AccessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
-        this.getAttribute(EntityColumnDefinitions.PK).value = accessPatternDefinition.pk;
-        this.getAttribute(EntityColumnDefinitions.SK).value = accessPatternDefinition.sk;
-        this.getAttribute(EntityColumnDefinitions.CREATED_AT).value = now.toISOString();
-        this.getAttribute(EntityColumnDefinitions.UPDATED_AT).value = now.toISOString();
-        this.getAttribute(EntityColumnDefinitions.TYPE).value = StudentAccessPattern.TYPE;
-
-        accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id, now);
-        this.getAttribute(EntityColumnDefinitions.GSI1PK).value = accessPatternDefinition.pk;
-        this.getAttribute(EntityColumnDefinitions.GSI1SK).value = accessPatternDefinition.sk;
-    }
-
     public static async create(firstName: string,
                                lastName: string,
                                email: string,
@@ -213,7 +213,12 @@ export class StudentEntity extends Entity {
             studentId = KSUID.randomSync().string;
         }
         studentEntity.getAttribute(StudentAttributeDefinition.ID).value = studentId;
-        studentEntity.setCoreDefaults(studentId);
+
+        studentEntity.setCoreDefaults(studentId, StudentAccessPattern.TYPE, (now: Date, type: string) => {
+            const accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id, now);
+            studentEntity.getAttribute(EntityColumnDefinitions.GSI1PK).value = accessPatternDefinition.pk;
+            studentEntity.getAttribute(EntityColumnDefinitions.GSI1SK).value = accessPatternDefinition.sk;
+        });
 
         return studentEntity;
     }

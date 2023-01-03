@@ -1,13 +1,18 @@
-import {DescribeTableOutput, DocumentClient, TransactWriteItemsInput} from "aws-sdk/clients/dynamodb";
+import {
+    BatchGetItemInput,
+    DescribeTableOutput,
+    DocumentClient,
+    TransactWriteItemsInput
+} from "aws-sdk/clients/dynamodb";
 import logger from "../../logger";
 import {DAOException} from "../DAOException";
 import {isDate, isEmail, isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
+import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "../../models";
+import * as Assert from "assert";
 // import {ValidationError} from "class-validator/types/validation/ValidationError";
 
 const AWS = require("aws-sdk");
 import assert = require("assert");
-import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "../../models";
-import * as Assert from "assert";
 
 export enum TransactionType {
     PUT, UPDATE, DELETE, CONDITION_EXPRESSION
@@ -153,7 +158,7 @@ export const isValidEmail = (key: string): EntityValidation => {
 export const isValidDate = (key: string): EntityValidation => {
     return {
         getMessage(): string {
-            return `${key} is required and must be a valid email address`;
+            return `${key} is required and must be a valid Date`;
         },
 
         isValid(value: string): boolean {
@@ -252,9 +257,9 @@ export abstract class Entity {
             let t = Object.create({});
             const keys = Object.keys(data);
             keys.map(key => {
-                const entityAttribute = entity.getAttributeUsingShortName(key);
+                const entityAttribute: EntityAttribute = entity.getAttributeUsingShortName(key);
                 if (entityAttribute) {
-                    t[entityAttribute._columnName] = data[key];
+                    t[entityAttribute.columnName] = data[key];
 
                     if (deleteKeyColumns) {
                         if (entityAttribute.columnAlias === EntityColumnDefinitions.PK.shortAliasName ||
@@ -263,7 +268,7 @@ export abstract class Entity {
                             entityAttribute.columnAlias === EntityColumnDefinitions.GSI1SK.shortAliasName
                             // entityAttribute.columnAlias === EntityColumnDefinitions.TYPE.shortAliasName
                         )
-                            delete t[entityAttribute._columnName];
+                            delete t[entityAttribute.columnName];
                     }
                 } else {
                     logger.error(`Could not locate entity attribute on Thread Entity using key ${key}`);
@@ -405,6 +410,21 @@ export abstract class Entity {
             throw new ValidationException("Failed Validation", errors);
         }
     }
+
+    protected setCoreDefaults(accessPatternDefinition: AccessPatternDefinition, type: string, callback?: Function) {
+        Assert.ok(accessPatternDefinition !== null, "accessPatternDefinition is required");
+        const now = new Date();
+        this.getAttribute(EntityColumnDefinitions.PK).value = accessPatternDefinition.pk;
+        this.getAttribute(EntityColumnDefinitions.SK).value = accessPatternDefinition.sk;
+        this.getAttribute(EntityColumnDefinitions.CREATED_AT).value = now.toISOString();
+        this.getAttribute(EntityColumnDefinitions.UPDATED_AT).value = now.toISOString();
+        this.getAttribute(EntityColumnDefinitions.TYPE).value = type;
+
+        if (callback) {
+            callback(now, type);
+        }
+    }
+
 }
 
 export enum QueryExpressionOperator {
@@ -514,7 +534,7 @@ export abstract class DynamoDAO {
     protected async findByAccessPattern(accessPattern: AccessPattern,
                                         queryOptions: QueryOptions = new QueryOptions()): Promise<DocumentClient.QueryInput> {
         const queryData: DocumentClient.QueryInput = {
-            ...this.getTemplate(queryOptions.limit, queryOptions.sortAscending)
+            ...this.getQueryInputTemplate(queryOptions.limit, queryOptions.sortAscending)
         };
 
         if (accessPattern.indexName) {
@@ -531,7 +551,7 @@ export abstract class DynamoDAO {
         this.client = new AWS.DynamoDB.DocumentClient(dynamoDBOptions);
     }
 
-    public async validate() {
+    public async tableExists() {
         try {
             const checkDb = new AWS.DynamoDB();
             const data: DescribeTableOutput = await checkDb.describeTable({
@@ -649,7 +669,7 @@ export abstract class DynamoDAO {
         return this.dynamoDBOptions.tableName;
     }
 
-    async query(params: DocumentClient.QueryInput, accessPattern: AccessPattern): Promise<ServiceResponse> {
+    protected async query(params: DocumentClient.QueryInput, accessPattern: AccessPattern): Promise<ServiceResponse> {
         let results;
         try {
             logger.info(params);
@@ -667,6 +687,8 @@ export abstract class DynamoDAO {
 
         return this.mapResponse(results, accessPattern);
     }
+
+    /************************************************  NATIVE QUERIES ************************************************/
 
     protected async nativeCreate(params: DocumentClient.PutItemInput) {
         const result = this.getDocumentClient().put(params).promise();
@@ -686,16 +708,23 @@ export abstract class DynamoDAO {
         return result;
     }
 
-    protected async getCreateParams<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<DocumentClient.PutItemInput> {
-        if (validate) {
-            await obj.validate();
-        }
 
+
+    /************************************************  QUERY TEMPLATES ************************************************/
+
+    /**
+     * Returns a Dynamo Template you can use to perform a Put.  You can update the template with your own custom code
+     * after you get the template.
+     *
+     * @param obj
+     * @protected
+     * @returns Promise<DocumentClient.PutItemInput>
+     */
+    protected async getCreateTemplate<T extends Entity>(obj: T): Promise<DocumentClient.PutItemInput> {
+        await obj.validate();
         const now = new Date().toISOString();
-
         let newItem: any = {};
 
-        // Assign values to the "system/core" attributes
         obj.getAttributes().forEach((attr) => {
             if (attr.columnAlias === EntityColumnDefinitions.TYPE.shortAliasName) {
                 attr.value = attr.value;
@@ -716,33 +745,132 @@ export abstract class DynamoDAO {
             }
         });
 
-        const itemInput: DocumentClient.PutItemInput = {
+        return {
             TableName: this.getTableName(),
             Item: newItem,
-            ConditionExpression: "attribute_not_exists(#pk)",
+            ConditionExpression: "",
             ExpressionAttributeNames: {
                 ["#" + obj.getPk().columnAlias]: obj.getPk().value,
             }
         }
-
-        // Add the SK fields if necessary
-        if (useSkInCondition) {
-            itemInput.ConditionExpression += " and attribute_not_exists(#" + obj.getSk().columnAlias + ")";
-            itemInput.ExpressionAttributeNames["#" + obj.getSk().columnAlias] = obj.getSk().value;
-        }
-        return itemInput;
     }
 
+    /**
+     * Updates specific dynamo item attributes based on the items parameter assuming the pk exists.  You can pass in the
+     * updated column definition yourself via the EntityAttrbiutes or let the function use the default core attribute value.
+     *
+     * @param pk
+     * @param sk
+     * @param items
+     * @param type Uses SET at this time, other types are not supported yet but plan to be later on
+     */
+    protected async getUpdateTemplate(
+        pk: DynamoKeyPair,
+        sk: DynamoKeyPair,
+        items: EntityAttribute[],
+        type: string = "SET"): Promise<DocumentClient.UpdateItemInput> {
+
+        const now = new Date().toISOString();
+        let updateExpression: string[] = [];
+        let expressionAttributeNames: any = {
+            ["#"+pk.keyName] : pk.keyName,
+            ["#"+sk.keyName] : sk.keyName
+        };
+        let expressionAttributeValues: any = {};
+
+        items.forEach((attr) => {
+            if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
+                if (!attr.value) {
+                    attr.value = now;
+                } else {
+                    attr.value = attr.value.toISOString();
+                }
+            }
+            updateExpression.push(` #${attr.columnAlias} = :${attr.columnAlias} `);
+            expressionAttributeNames[`#${attr.columnAlias}`] = attr.columnAlias;
+            expressionAttributeValues[`:${attr.columnAlias}`] = attr.value;
+        })
+
+        const hasUpdatedDefinition:EntityAttribute = items.find(item => item.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName);
+        if (!hasUpdatedDefinition) {
+            const now = new Date().toISOString();
+            updateExpression.push(` #${EntityColumnDefinitions.UPDATED_AT.shortAliasName} = :${EntityColumnDefinitions.UPDATED_AT.shortAliasName} `);
+            expressionAttributeNames[`#${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = EntityColumnDefinitions.UPDATED_AT.shortAliasName;
+            expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = now;
+        }
+
+        let conditionExpr: string = ` attribute_exists(#${pk.keyName}) and attribute_exists(#${sk.keyName}) `;
+
+        return {
+            Key: {
+                [pk.keyName] : pk.keyValue,
+                [sk.keyName] : sk.keyValue
+            },
+            TableName: this.getTableName(),
+            ReturnConsumedCapacity: "TOTAL",
+            UpdateExpression: " SET " + updateExpression.join(", "),
+            ConditionExpression: conditionExpr,
+            ExpressionAttributeValues: expressionAttributeValues,
+            ExpressionAttributeNames: expressionAttributeNames
+        }
+    }
+
+    // protected async getCreateParams<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<DocumentClient.PutItemInput> {
+    //     if (validate) {
+    //         await obj.validate();
+    //     }
+    //
+    //     const now = new Date().toISOString();
+    //
+    //     let newItem: any = {};
+    //
+    //     // Assign values to the "system/core" attributes
+    //     obj.getAttributes().forEach((attr) => {
+    //         if (attr.columnAlias === EntityColumnDefinitions.TYPE.shortAliasName) {
+    //             attr.value = attr.value;
+    //         } else if (attr.columnAlias === EntityColumnDefinitions.CREATED_AT.shortAliasName ||
+    //             attr.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName) {
+    //             if (!attr.value) {
+    //                 attr.value = now;
+    //             } else if (attr.value instanceof Date) {
+    //                 attr.value = attr.value.toISOString();
+    //             }
+    //         } else if (attr.columnAlias === EntityColumnDefinitions.PK.shortAliasName || attr.columnAlias === EntityColumnDefinitions.SK.shortAliasName) {
+    //             attr.value = attr.value;
+    //         }
+    //         if (attr.value instanceof Date) {
+    //             newItem[attr.columnAlias] = attr.value.toISOString();
+    //         } else {
+    //             newItem[attr.columnAlias] = attr.value;
+    //         }
+    //     });
+    //
+    //     const itemInput: DocumentClient.PutItemInput = {
+    //         TableName: this.getTableName(),
+    //         Item: newItem,
+    //         ConditionExpression: "attribute_not_exists(#pk)",
+    //         ExpressionAttributeNames: {
+    //             ["#" + obj.getPk().columnAlias]: obj.getPk().value,
+    //         }
+    //     }
+    //
+    //     // Add the SK fields if necessary
+    //     if (useSkInCondition) {
+    //         itemInput.ConditionExpression += " and attribute_not_exists(#" + obj.getSk().columnAlias + ")";
+    //         itemInput.ExpressionAttributeNames["#" + obj.getSk().columnAlias] = obj.getSk().value;
+    //     }
+    //     return itemInput;
+    // }
+
     protected async create<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<any> {
-        const itemInput:DocumentClient.PutItemInput = await this.getCreateParams(obj, validate, useSkInCondition);
+        const itemInput:DocumentClient.PutItemInput = await this.getCreateTemplate(obj);
         return this.nativeCreate(itemInput);
     }
 
     protected async update(pk: DynamoKeyPair,
                            sk: DynamoKeyPair,
-                           items: EntityAttribute[],
-                           validate: boolean = true): Promise<any> {
-        const itemInput:DocumentClient.UpdateItemInput = await this.getUpdateParams(pk, sk, items, validate);
+                           items: EntityAttribute[]): Promise<any> {
+        const itemInput:DocumentClient.UpdateItemInput = await this.getUpdateTemplate(pk, sk, items);
         return this.nativeUpdate(itemInput);
     }
 
@@ -808,6 +936,7 @@ export abstract class DynamoDAO {
      * @param items
      * @param validate
      * @param type Uses SET at this time, other types are not supported yet but plan to be later on
+     * @deprecated Use getUpdateTemplate
      */
     protected async getUpdateParams(
         pk: DynamoKeyPair,
@@ -824,12 +953,6 @@ export abstract class DynamoDAO {
         let expressionAttributeValues: any = {};
 
         items.forEach((attr) => {
-            // if (validate) {
-            //     if (!attr || !attr.value || !attr.columnName || !attr.columnAlias) {
-            //         throw new ValidationException(`Failed Validation.  Missing required attributes for ${attr.columnName}.`,attr);
-            //     }
-            // }
-
             if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
                 if (!attr.value) {
                     attr.value = now;
@@ -964,13 +1087,41 @@ export abstract class DynamoDAO {
         return !limit || limit > DynamoDAO.MAX_LIMIT ? DynamoDAO.MAX_LIMIT : limit;
     }
 
-    protected getTemplate(limit?: number, sortAscending: boolean = true): DocumentClient.QueryInput {
+    protected getQueryInputTemplate(limit?: number, sortAscending: boolean = true): DocumentClient.QueryInput {
         return {
             TableName: this.getTableName(),
             Limit: DynamoDAO.getLimit(limit),
             ScanIndexForward: sortAscending,
             ReturnConsumedCapacity: "INDEXES"
         }
+    }
+
+    protected getBatchGetTemplate(accessPatterns:AccessPattern[]): BatchGetItemInput {
+        Assert.ok(accessPatterns !== undefined, "Access Patterns is a required parameter for getBatchGetTemplate");
+
+        const template: BatchGetItemInput = {
+            RequestItems: {
+                [this.getTableName()] : {
+                    Keys: []
+                },
+            },
+            ReturnConsumedCapacity: "TOTAL"
+        }
+
+        let queryData: any;
+        for (let ap of accessPatterns) {
+            queryData = {};
+            queryData[ap.partitionKeyExpression.keyName] = ap.partitionKeyExpression.value1;
+            queryData[ap.sortKeyExpression.keyName] = ap.sortKeyExpression.value1;
+            template.RequestItems[this.getTableName()].Keys.push(queryData);
+        }
+
+        return template;
+    }
+
+    protected async batchGet(batchGetItemInput: BatchGetItemInput) {
+        const response: DocumentClient.BatchGetItemOutput = await this.client.batchGet(batchGetItemInput).promise();
+        return response.Responses[this.getTableName()];
     }
 
     protected async findByPrimaryKey(pk: string,
