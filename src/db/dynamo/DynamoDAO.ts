@@ -175,7 +175,7 @@ export interface ValidationError {
 export class EntityColumnDefinitions {
     public static PK = EntityColumn.create("pk", "pk", DynamoAttributeType.STRING, isRequired("pk"));
     public static SK = EntityColumn.create("sk", "sk", DynamoAttributeType.STRING, isRequired("sk"));
-    public static TYPE = EntityColumn.create("type", "type", DynamoAttributeType.STRING);
+    public static TYPE = EntityColumn.create("type", "typ", DynamoAttributeType.STRING);
     public static CREATED_AT = EntityColumn.create("createdAt", "cadt", DynamoAttributeType.STRING);
     public static UPDATED_AT = EntityColumn.create("updatedAt", "uadt", DynamoAttributeType.STRING);
     public static GSI1PK = EntityColumn.create("GSI1pk", "GSI1pk");
