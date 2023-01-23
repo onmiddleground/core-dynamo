@@ -72,7 +72,7 @@ export class DynamoDBOptions {
 }
 
 export enum DynamoAttributeType {
-    STRING, NUMBER, DATE
+    STRING, NUMBER, DATE, BINARY, STRING_SET, NUMBER_SET, BINARY_SET, MAP, LIST, NULL, BOOLEAN
 }
 
 export class EntityAttribute {
@@ -258,8 +258,16 @@ export abstract class Entity {
             const keys = Object.keys(data);
             keys.map(key => {
                 const entityAttribute: EntityAttribute = entity.getAttributeUsingShortName(key);
+                
                 if (entityAttribute) {
                     t[entityAttribute.columnName] = data[key];
+                    if (entityAttribute.getType() === DynamoAttributeType.MAP) {
+                        try {
+                            t[entityAttribute.columnName] = JSON.parse(data[key]);
+                        } catch (err) {
+                            // leave the default if we can't parse the Map
+                        }
+                    }
 
                     if (deleteKeyColumns) {
                         if (entityAttribute.columnAlias === EntityColumnDefinitions.PK.shortAliasName ||
