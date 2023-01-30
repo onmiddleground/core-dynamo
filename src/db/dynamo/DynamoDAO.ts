@@ -250,7 +250,8 @@ export abstract class Entity {
 
     static async convert<E extends Entity, T extends Object>(E: any, serviceResponse: ServiceResponse,
                                                              deleteKeyColumns = true,
-                                                             onRecord?: any): Promise<ServiceResponse> {
+                                                             onRecord?: any,
+                                                             assignDefaultOnNulls: boolean = true): Promise<ServiceResponse> {
         let converted: ServiceResponse;
         const entity = new E;
         let items = serviceResponse.getData().map(data => {
@@ -261,6 +262,11 @@ export abstract class Entity {
                 
                 if (entityAttribute) {
                     t[entityAttribute.columnName] = data[key];
+                    if (entityAttribute.getType() === DynamoAttributeType.NUMBER) {
+                        if (assignDefaultOnNulls && !data[key]) {
+                            t[entityAttribute.columnName] = 0;  // default for numbers
+                        }
+                    }
                     if (entityAttribute.getType() === DynamoAttributeType.MAP) {
                         try {
                             t[entityAttribute.columnName] = JSON.parse(data[key]);
