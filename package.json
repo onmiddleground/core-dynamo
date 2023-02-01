@@ -1,6 +1,6 @@
 {
   "name": "@onmiddleground/core-dynamo",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Useful Dynamo Tools for development and testing",
   "main": "dist/index.js",
   "files": [
@@ -20,7 +20,7 @@
   "author": "Gary Waddell",
   "license": "ISC",
   "dependencies": {
-    "@onmiddleground/dynamo-tools": "^1.0.1",
+    "@onmiddleground/dynamo-tools": "^1.0.3",
     "class-validator": "^0.14.0",
     "dayjs": "^1.10.5"
   },
