@@ -153,7 +153,7 @@ export class TestDAO extends DynamoDAO {
                 attributes
             );
             const result:DocumentClient.UpdateItemOutput = await this.nativeUpdate(queryInput);
-            logger.debug("Update Test Details Complete", result.ConsumedCapacity);
+            logger.info("Update Test Details Complete", result.ConsumedCapacity);
             serviceResponse.statusCode = 200;
             serviceResponse.message = JSON.stringify(result.Attributes);
         } catch (err) {

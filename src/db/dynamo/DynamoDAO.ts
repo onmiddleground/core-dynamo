@@ -583,8 +583,9 @@ export abstract class DynamoDAO {
             queryInput.KeyConditionExpression = "";
         }
 
+        const nextTokenOperator = queryInput.ScanIndexForward ? QueryExpressionOperator.GT : QueryExpressionOperator.LT;
         if (expression instanceof SortKeyExpression && nextPageToken) {
-            queryInput.KeyConditionExpression += ` #${expression.keyName} < :token `;
+            queryInput.KeyConditionExpression += ` #${expression.keyName} ${nextTokenOperator} :token `;
         } else {
             if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
                 queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
@@ -645,7 +646,7 @@ export abstract class DynamoDAO {
     protected hasResults(dynamoResult: ServiceResponse): boolean {
         let result: boolean = false;
         if (dynamoResult && dynamoResult.getData() && dynamoResult.getData().length > 0) {
-            logger.debug(`DB results were found. Size ${dynamoResult.getData().length}`);
+            logger.info(`DB results were found. Size ${dynamoResult.getData().length}`);
             result = true;
         } else {
             logger.warn("::DynamoDB => hasResults: false");
@@ -690,7 +691,7 @@ export abstract class DynamoDAO {
             results = await this.getDocumentClient()
                 .query(params)
                 .promise();
-            logger.debug(results, "Returned Query Data");
+            logger.info(results, "Returned Query Data");
         } catch (err) {
             logger.error("Error in Dynamo Query", params);
             if (err.code === "ResourceNotFoundException") {
@@ -706,19 +707,19 @@ export abstract class DynamoDAO {
 
     protected async nativeCreate(params: DocumentClient.PutItemInput) {
         const result = this.getDocumentClient().put(params).promise();
-        logger.debug("Item inserted",result);
+        logger.info("Item inserted",result);
         return result;
     }
 
     protected async nativeUpdate(params: DocumentClient.UpdateItemInput): Promise<DocumentClient.UpdateItemOutput> {
         const result: DocumentClient.UpdateItemOutput = await this.getDocumentClient().update(params).promise();
-        logger.debug("Item Updated",result);
+        logger.info("Item Updated",result);
         return result;
     }
 
     protected async nativeDelete(params: DocumentClient.DeleteItemInput): Promise<DocumentClient.DeleteItemOutput> {
         const result: DocumentClient.DeleteItemOutput = await this.getDocumentClient().delete(params).promise();
-        logger.debug("Item Delete",result);
+        logger.info("Item Delete",result);
         return result;
     }
 
@@ -900,7 +901,7 @@ export abstract class DynamoDAO {
             serviceResponse.statusCode = 200;
             serviceResponse.message = JSON.stringify(deleteItemOutput.Attributes);
         }
-        logger.debug("Delete Complete", deleteItemOutput.ConsumedCapacity);
+        logger.info("Delete Complete", deleteItemOutput.ConsumedCapacity);
 
         return serviceResponse;
     }
