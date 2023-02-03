@@ -1,0 +1,4 @@
+{
+  "spec": "src/test/**/dao-spec.ts",
+  "require": "ts-node/register"
+}

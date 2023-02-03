@@ -16,10 +16,10 @@ describe("DAO Query suite", function () {
     this.timeout(0);
     const tableName: string = "students-test-db";
     let dynamoDbOptions: DynamoDBOptions = new DynamoDBOptions(tableName);
-    dynamoDbOptions.enableLocal();
+    dynamoDbOptions.enableLocal("127.0.0.1",4566);
     let studentDAO: StudentDAO;
     let testDAO: TestDAO;
-    let dynamoTools: DynamoTools = new DynamoTools(dynamoDbOptions.tableName, {});
+    let dynamoTools: DynamoTools = new DynamoTools(dynamoDbOptions.tableName, dynamoDbOptions);
 
     before(async () => {
         await dynamoTools.createTable();
@@ -29,7 +29,7 @@ describe("DAO Query suite", function () {
     });
 
     after(async () => {
-        await dynamoTools.deleteTable();
+        // await dynamoTools.deleteTable();
     });
 
     it("just load seeded data", async () => {});
@@ -53,7 +53,7 @@ describe("DAO Query suite", function () {
         expect(response.getData()[0]['stid']).to.eq('1vlsmYBTMZJWCjxM9AVYk6ZKahD');
         expect(response.getData()[0]['ln']).to.eq("Casper");
 
-        queryOptions.nextPageToken = response.nextToken;
+        queryOptions.setNextPageToken(response.nextToken);
         response = await studentDAO.findLatest(queryOptions);
         expect(response.getData().length).to.eq(10);
     });

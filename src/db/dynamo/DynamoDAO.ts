@@ -66,8 +66,10 @@ export class DynamoDBOptions {
         this.tableName = tableName;
     }
 
-    enableLocal() {
-        this.endpoint = "http://localhost:4566";
+    enableLocal(host: string = "localhost", port: number = 8000) {
+        console.log(`Using port ${port} for host ${host}`);
+        this.endpoint = `http://${host}:${port}`;
+        console.log(`Endpoint is set as ${this.endpoint}`);
     }
 }
 
@@ -518,10 +520,24 @@ export class AccessPattern {
 }
 
 export class QueryOptions {
-    constructor(public fields: any[] = [], public limit: number = 100, public sortAscending: boolean = true, public nextPageToken?: string) {
+    
+    private nextPageToken: string;
+    
+    constructor(public fields: any[] = [], public limit: number = 100, public sortAscending: boolean = true, nextPageToken?: string) {
         this.fields = fields;
         this.limit = limit;
         this.sortAscending = sortAscending;
+        if (nextPageToken) {
+            this.setNextPageToken(nextPageToken);
+        }
+    }
+
+    getNextPageToken() {
+        return this.nextPageToken;
+    }
+
+    setNextPageToken(nextToken: string) {
+        this.nextPageToken = Buffer.from(nextToken, 'base64').toString('utf8');
     }
 }
 
@@ -545,6 +561,20 @@ export abstract class DynamoDAO {
 
     public readonly client: DocumentClient;
 
+    public constructor(protected readonly dynamoDBOptions: DynamoDBOptions) {
+        assert.ok(dynamoDBOptions);
+        // const options: any = {};
+        // if (dynamoDBOptions.endpoint) {
+        //     logger.info(`Using Local Endpoint on DAO Services ${dynamoDBOptions.endpoint}`);
+        //     options.endpoint = dynamoDBOptions.endpoint;
+        // }
+        // if (dynamoDBOptions.region) {
+        //     logger.info(`Using Region ${dynamoDBOptions.region}`);
+        //     options.region = dynamoDBOptions.region
+        // }
+        this.client = new AWS.DynamoDB.DocumentClient(dynamoDBOptions);
+    }
+
     protected async findByAccessPattern(accessPattern: AccessPattern,
                                         queryOptions: QueryOptions = new QueryOptions()): Promise<DocumentClient.QueryInput> {
         const queryData: DocumentClient.QueryInput = {
@@ -555,14 +585,9 @@ export abstract class DynamoDAO {
             queryData.IndexName = accessPattern.indexName;
         }
 
-        await this.buildExpression(accessPattern, queryData, queryOptions.nextPageToken);
+        await this.buildExpression(accessPattern, queryData, queryOptions.getNextPageToken());
         await this.mapProjectionExpressions(queryData, queryOptions.fields);
         return queryData;
-    }
-
-    public constructor(protected readonly dynamoDBOptions: DynamoDBOptions) {
-        assert.ok(dynamoDBOptions);
-        this.client = new AWS.DynamoDB.DocumentClient(dynamoDBOptions);
     }
 
     public async tableExists() {
@@ -1080,6 +1105,10 @@ export abstract class DynamoDAO {
                 }
                 if (dynamoResult.LastEvaluatedKey) {
                     result.nextToken = dynamoResult.LastEvaluatedKey[accessPattern.sortKeyExpression.keyName];
+                    // Base 64 Encode the Token 
+                    logger.debug("Next token in raw format is " + result.nextToken);
+                    result.nextToken = Buffer.from(result.nextToken, 'utf8').toString('base64')  
+                    logger.debug("Next token Base64 Encoded as " + result.nextToken);
                 }
             }
         }

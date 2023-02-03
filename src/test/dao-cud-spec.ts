@@ -19,7 +19,7 @@ describe("DAO Create, Update, Delete suite", function () {
     dynamoDbOptions.enableLocal();
     let studentDAO: StudentDAO;
     let testDAO: TestDAO;
-    let dynamoTools: DynamoTools = new DynamoTools(dynamoDbOptions.tableName, {});
+    let dynamoTools: DynamoTools = new DynamoTools(dynamoDbOptions.tableName, dynamoDbOptions);
 
     beforeEach(async () => {
         await dynamoTools.createTable();
