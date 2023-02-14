@@ -1045,7 +1045,6 @@ export abstract class DynamoDAO {
                 [sk.keyName] : sk.keyValue
             },
             TableName: this.getTableName(),
-            ExpressionAttributeNames: {},
             ReturnValues: "ALL_OLD",
         }
 
