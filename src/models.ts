@@ -88,6 +88,10 @@ export class ServiceResponse {
         this.data.push(item);
     }
 
+    hasData() {
+        return this.data && this.data.length > 0;
+    }
+
     getData() {
         return [...[],...this.data];
     }
