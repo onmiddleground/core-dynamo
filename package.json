@@ -14,7 +14,7 @@
     "build": "npm run clean && node ./node_modules/typescript/bin/tsc",
     "watch": "npm run clean && node ./node_modules/typescript/bin/tsc --watch",
     "test": "mocha -r ts-node/register src/**/*-spec.ts",
-    "publish": "npm run build && npm version patch && npm publish"
+    "_publish": "npm run build && npm version patch && npm publish"
   },
   "author": "Gary Waddell",
   "license": "ISC",
