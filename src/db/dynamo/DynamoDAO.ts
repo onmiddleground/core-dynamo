@@ -668,6 +668,13 @@ export abstract class DynamoDAO {
         }
     }
 
+    public async updateCount(pk: DynamoKeyPair, sk: DynamoKeyPair, incrementingFieldName: string, incrementing = true) {
+        return incrementing ?
+            this.aggregateIncrementCount(pk, sk, incrementingFieldName)
+            :
+            this.aggregateDecrementCount(pk, sk, incrementingFieldName);
+    }
+
     protected hasResults(dynamoResult: ServiceResponse): boolean {
         let result: boolean = false;
         if (dynamoResult && dynamoResult.getData() && dynamoResult.getData().length > 0) {
