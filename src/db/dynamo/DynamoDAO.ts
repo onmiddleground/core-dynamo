@@ -793,10 +793,12 @@ export abstract class DynamoDAO {
             }
         });
 
+        ;
+
         return {
             TableName: this.getTableName(),
             Item: newItem,
-            ConditionExpression: "",
+            ConditionExpression: ` attribute_not_exists(#${EntityColumnDefinitions.PK.shortAliasName})`,
             ExpressionAttributeNames: {
                 ["#" + obj.getPk().columnAlias]: obj.getPk().value,
             }
