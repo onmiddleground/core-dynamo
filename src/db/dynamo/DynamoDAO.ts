@@ -669,10 +669,11 @@ export abstract class DynamoDAO {
     }
 
     public async updateCount(pk: DynamoKeyPair, sk: DynamoKeyPair, incrementingFieldName: string, incrementing = true) {
-        return incrementing ?
-            this.aggregateIncrementCount(pk, sk, incrementingFieldName)
+        const template = incrementing ?
+            await this.aggregateIncrementCount(pk, sk, incrementingFieldName)
             :
-            this.aggregateDecrementCount(pk, sk, incrementingFieldName);
+            await this.aggregateDecrementCount(pk, sk, incrementingFieldName);
+        return this.nativeUpdate(template);
     }
 
     protected hasResults(dynamoResult: ServiceResponse): boolean {
