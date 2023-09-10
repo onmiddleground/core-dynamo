@@ -1144,7 +1144,7 @@ export abstract class DynamoDAO {
         return {
             TableName: this.getTableName(),
             Limit: DynamoDAO.getLimit(limit),
-            ScanIndexForward: sortAscending,
+            ScanIndexForward: !!sortAscending,
             ReturnConsumedCapacity: "INDEXES"
         }
     }
