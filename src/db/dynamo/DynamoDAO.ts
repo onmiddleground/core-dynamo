@@ -610,15 +610,14 @@ export abstract class DynamoDAO {
 
         const nextTokenOperator = queryInput.ScanIndexForward ? QueryExpressionOperator.GT : QueryExpressionOperator.LT;
         if (expression instanceof SortKeyExpression && nextPageToken) {
-            queryInput.KeyConditionExpression += ` #${expression.keyName} ${nextTokenOperator} :token `;
+            queryInput.KeyConditionExpression += ` #${expression.keyName} ${nextTokenOperator} :token and `;
+        }
+        if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
+            queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
+        } else if (expression.comparator === QueryExpressionOperator.BETWEEN) {
+            queryInput.KeyConditionExpression += " #" + expression.keyName + " " + expression.comparator + " :" + expression.keyName + "1 " + " and :" + expression.keyName + "2";
         } else {
-            if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
-                queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
-            } else if (expression.comparator === QueryExpressionOperator.BETWEEN) {
-                queryInput.KeyConditionExpression += " #" + expression.keyName + " " + expression.comparator + " :" + expression.keyName + "1 " + " and :" + expression.keyName + "2";
-            } else {
-                queryInput.KeyConditionExpression += "#" + expression.keyName + " " + expression.comparator + " :" + expression.keyName;
-            }
+            queryInput.KeyConditionExpression += "#" + expression.keyName + " " + expression.comparator + " :" + expression.keyName;
         }
     }
 
