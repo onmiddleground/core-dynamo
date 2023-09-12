@@ -625,13 +625,12 @@ export abstract class DynamoDAO {
         queryInput.ExpressionAttributeNames["#" + expression.keyName] = expression.keyName;
         if (expression instanceof SortKeyExpression && nextPageToken) {
             queryInput.ExpressionAttributeValues[":token"] = nextPageToken;
+        }
+        if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
+            queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = expression.value1;
+            queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = expression.value2;
         } else {
-            if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = expression.value1;
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = expression.value2;
-            } else {
-                queryInput.ExpressionAttributeValues[":" + expression.keyName] = expression.value1;
-            }
+            queryInput.ExpressionAttributeValues[":" + expression.keyName] = expression.value1;
         }
     }
 
