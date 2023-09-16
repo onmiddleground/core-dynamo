@@ -77,6 +77,21 @@ export enum DynamoAttributeType {
     STRING, NUMBER, DATE, BINARY, STRING_SET, NUMBER_SET, BINARY_SET, MAP, LIST, NULL, BOOLEAN
 }
 
+
+// getDynamoAttributeType(dynamoEntityType: DynamoAttributeType): string {
+//     let result = "S";
+//     switch (dynamoEntityType) {
+//         case DynamoAttributeType.NUMBER: result = "N"; break;
+//         case DynamoAttributeType.BINARY: result = "B"; break;
+//         case DynamoAttributeType.BOOLEAN: result = "BOOL"; break;
+//         case DynamoAttributeType.NUMBER: result = "N"; break;
+//     }
+//
+//     return result;
+// }
+
+
+
 export class EntityAttribute {
     @IsNotEmpty()
     public readonly entityColumn: EntityColumn;
@@ -610,14 +625,15 @@ export abstract class DynamoDAO {
 
         const nextTokenOperator = queryInput.ScanIndexForward ? QueryExpressionOperator.GT : QueryExpressionOperator.LT;
         if (expression instanceof SortKeyExpression && nextPageToken) {
-            queryInput.KeyConditionExpression += ` #${expression.keyName} ${nextTokenOperator} :token and `;
-        }
-        if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
-            queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
-        } else if (expression.comparator === QueryExpressionOperator.BETWEEN) {
-            queryInput.KeyConditionExpression += " #" + expression.keyName + " " + expression.comparator + " :" + expression.keyName + "1 " + " and :" + expression.keyName + "2";
+            queryInput.KeyConditionExpression += ` #${expression.keyName} ${nextTokenOperator} :token `;
         } else {
-            queryInput.KeyConditionExpression += "#" + expression.keyName + " " + expression.comparator + " :" + expression.keyName;
+            if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
+                queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
+            } else if (expression.comparator === QueryExpressionOperator.BETWEEN) {
+                queryInput.KeyConditionExpression += " #" + expression.keyName + " " + expression.comparator + " :" + expression.keyName + "1 " + " and :" + expression.keyName + "2";
+            } else {
+                queryInput.KeyConditionExpression += "#" + expression.keyName + " " + expression.comparator + " :" + expression.keyName;
+            }
         }
     }
 
@@ -625,12 +641,13 @@ export abstract class DynamoDAO {
         queryInput.ExpressionAttributeNames["#" + expression.keyName] = expression.keyName;
         if (expression instanceof SortKeyExpression && nextPageToken) {
             queryInput.ExpressionAttributeValues[":token"] = nextPageToken;
-        }
-        if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
-            queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = expression.value1;
-            queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = expression.value2;
         } else {
-            queryInput.ExpressionAttributeValues[":" + expression.keyName] = expression.value1;
+            if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
+                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = expression.value1;
+                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = expression.value2;
+            } else {
+                queryInput.ExpressionAttributeValues[":" + expression.keyName] = expression.value1;
+            }
         }
     }
 
@@ -1142,7 +1159,7 @@ export abstract class DynamoDAO {
         return {
             TableName: this.getTableName(),
             Limit: DynamoDAO.getLimit(limit),
-            ScanIndexForward: !!sortAscending,
+            ScanIndexForward: !(typeof sortAscending === "string" && sortAscending === "false" || !sortAscending),
             ReturnConsumedCapacity: "INDEXES"
         }
     }
