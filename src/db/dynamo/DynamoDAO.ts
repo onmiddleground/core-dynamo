@@ -77,6 +77,21 @@ export enum DynamoAttributeType {
     STRING, NUMBER, DATE, BINARY, STRING_SET, NUMBER_SET, BINARY_SET, MAP, LIST, NULL, BOOLEAN
 }
 
+
+// getDynamoAttributeType(dynamoEntityType: DynamoAttributeType): string {
+//     let result = "S";
+//     switch (dynamoEntityType) {
+//         case DynamoAttributeType.NUMBER: result = "N"; break;
+//         case DynamoAttributeType.BINARY: result = "B"; break;
+//         case DynamoAttributeType.BOOLEAN: result = "BOOL"; break;
+//         case DynamoAttributeType.NUMBER: result = "N"; break;
+//     }
+//
+//     return result;
+// }
+
+
+
 export class EntityAttribute {
     @IsNotEmpty()
     public readonly entityColumn: EntityColumn;
@@ -1144,7 +1159,7 @@ export abstract class DynamoDAO {
         return {
             TableName: this.getTableName(),
             Limit: DynamoDAO.getLimit(limit),
-            ScanIndexForward: !!sortAscending,
+            ScanIndexForward: !(typeof sortAscending === "string" && sortAscending === "false" || !sortAscending),
             ReturnConsumedCapacity: "INDEXES"
         }
     }
