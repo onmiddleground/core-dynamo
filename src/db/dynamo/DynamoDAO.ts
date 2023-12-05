@@ -1,17 +1,28 @@
-import {
-    BatchGetItemInput,
-    DescribeTableOutput,
-    DocumentClient,
-    TransactWriteItemsInput
-} from "aws-sdk/clients/dynamodb";
+// Transformation of DocumentClient named import from deep path is unsupported in aws-sdk-js-codemod.
+// Please convert to a default import, and re-run aws-sdk-js-codemod.
+// Transformation of DocumentClient named import from deep path is unsupported in aws-sdk-js-codemod.
+// Please convert to a default import, and re-run aws-sdk-js-codemod.
 import logger from "../../logger";
 import {DAOException} from "../DAOException";
 import {isDate, isEmail, isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
 import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "../../models";
 import * as Assert from "assert";
-// import {ValidationError} from "class-validator/types/validation/ValidationError";
-
-const AWS = require("aws-sdk");
+import {
+    AttributeValue,
+    BatchGetItemInput,
+    BatchGetItemOutput,
+    DeleteItemInput,
+    DeleteItemOutput,
+    DynamoDB,
+    PutItemInput,
+    QueryInput,
+    QueryOutput,
+    TransactWriteItemsCommandInput,
+    TransactWriteItemsInput,
+    TransactWriteItemsOutput,
+    UpdateItemInput,
+    UpdateItemOutput,
+} from '@aws-sdk/client-dynamodb';
 import assert = require("assert");
 
 export enum TransactionType {
@@ -55,8 +66,6 @@ export class AccessPatternDefinition {
 
 export class DynamoDBOptions {
     public readonly tableName: string;
-
-    public region: string = "us-east-1";
 
     public endpoint: string;
 
@@ -574,25 +583,16 @@ export abstract class DynamoDAO {
 
     public static DELIMITER: string = "#";
 
-    public readonly client: DocumentClient;
+    public readonly client: DynamoDB;
 
     public constructor(protected readonly dynamoDBOptions: DynamoDBOptions) {
         assert.ok(dynamoDBOptions);
-        // const options: any = {};
-        // if (dynamoDBOptions.endpoint) {
-        //     logger.info(`Using Local Endpoint on DAO Services ${dynamoDBOptions.endpoint}`);
-        //     options.endpoint = dynamoDBOptions.endpoint;
-        // }
-        // if (dynamoDBOptions.region) {
-        //     logger.info(`Using Region ${dynamoDBOptions.region}`);
-        //     options.region = dynamoDBOptions.region
-        // }
-        this.client = new AWS.DynamoDB.DocumentClient(dynamoDBOptions);
+        this.client = new DynamoDB(dynamoDBOptions);
     }
 
     protected async findByAccessPattern(accessPattern: AccessPattern,
-                                        queryOptions: QueryOptions = new QueryOptions()): Promise<DocumentClient.QueryInput> {
-        const queryData: DocumentClient.QueryInput = {
+                                        queryOptions: QueryOptions = new QueryOptions()): Promise<QueryInput> {
+        const queryData: QueryInput = {
             ...this.getQueryInputTemplate(queryOptions.limit, queryOptions.sortAscending)
         };
 
@@ -605,18 +605,23 @@ export abstract class DynamoDAO {
         return queryData;
     }
 
-    public async tableExists() {
+    public async getTableMetaData() {
         try {
-            const checkDb = new AWS.DynamoDB();
-            const data: DescribeTableOutput = await checkDb.describeTable({
+            const checkDb = new DynamoDB();
+            return await checkDb.describeTable({
                 TableName: this.dynamoDBOptions.tableName
-            }).promise();
+            });
         } catch (err) {
             throw new NotFoundException("Table error or it does not exist", 500);
         }
     }
 
-    protected buildKeyConditionExpression(queryInput: DocumentClient.QueryInput, expression: DynamoExpression, nextPageToken?: string) {
+    public async tableExists(): Promise<boolean> {
+        await this.getTableMetaData();
+        return true;
+    }
+
+    protected buildKeyConditionExpression(queryInput: QueryInput, expression: DynamoExpression, nextPageToken?: string) {
         if (queryInput.KeyConditionExpression) {
             queryInput.KeyConditionExpression += " and ";
         } else {
@@ -637,21 +642,21 @@ export abstract class DynamoDAO {
         }
     }
 
-    protected buildExpressionAttributes(queryInput: DocumentClient.QueryInput, expression: DynamoExpression, nextPageToken?: string) {
+    protected buildExpressionAttributes(queryInput: QueryInput, expression: DynamoExpression, nextPageToken?: string) {
         queryInput.ExpressionAttributeNames["#" + expression.keyName] = expression.keyName;
         if (expression instanceof SortKeyExpression && nextPageToken) {
-            queryInput.ExpressionAttributeValues[":token"] = nextPageToken;
+            queryInput.ExpressionAttributeValues[":token"].S = nextPageToken;
         } else {
             if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = expression.value1;
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = expression.value2;
+                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"].S = expression.value1;
+                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"].S = expression.value2;
             } else {
-                queryInput.ExpressionAttributeValues[":" + expression.keyName] = expression.value1;
+                queryInput.ExpressionAttributeValues[":" + expression.keyName].S = expression.value1;
             }
         }
     }
 
-    protected initQueryInput(queryInput: DocumentClient.QueryInput) {
+    protected initQueryInput(queryInput: QueryInput) {
         if (!queryInput.ExpressionAttributeValues) {
             queryInput.ExpressionAttributeValues = {};
         }
@@ -661,7 +666,7 @@ export abstract class DynamoDAO {
     }
 
     protected async buildQuery(expr: DynamoExpression,
-                               queryInput: DocumentClient.QueryInput,
+                               queryInput: QueryInput,
                                nextPageToken?: string) {
         let errors = await expr.validate();
         if (errors.length > 0) {
@@ -671,7 +676,7 @@ export abstract class DynamoDAO {
         this.buildExpressionAttributes(queryInput, expr, nextPageToken);
     }
 
-    protected async buildExpression(accessPattern: AccessPattern, queryInput: DocumentClient.QueryInput, nextPageToken?: string) {
+    protected async buildExpression(accessPattern: AccessPattern, queryInput: QueryInput, nextPageToken?: string) {
         if (!accessPattern) {
             return;
         }
@@ -720,7 +725,7 @@ export abstract class DynamoDAO {
         }
     }
 
-    protected getDocumentClient(): DocumentClient {
+    protected getDocumentClient(): DynamoDB {
         return this.client;
     }
 
@@ -732,13 +737,12 @@ export abstract class DynamoDAO {
         return this.dynamoDBOptions.tableName;
     }
 
-    protected async query(params: DocumentClient.QueryInput, accessPattern: AccessPattern): Promise<ServiceResponse> {
+    protected async query(params: QueryInput, accessPattern: AccessPattern): Promise<ServiceResponse> {
         let results;
         try {
             logger.info(params);
             results = await this.getDocumentClient()
-                .query(params)
-                .promise();
+                .query(params);
             logger.info(results, "Returned Query Data");
         } catch (err) {
             logger.error("Error in Dynamo Query", params);
@@ -753,20 +757,20 @@ export abstract class DynamoDAO {
 
     /************************************************  NATIVE QUERIES ************************************************/
 
-    protected async nativeCreate(params: DocumentClient.PutItemInput) {
-        const result = this.getDocumentClient().put(params).promise();
+    protected async nativeCreate(params: PutItemInput) {
+        const result = this.getDocumentClient().putItem(params);
         logger.info("Item inserted",result);
         return result;
     }
 
-    protected async nativeUpdate(params: DocumentClient.UpdateItemInput): Promise<DocumentClient.UpdateItemOutput> {
-        const result: DocumentClient.UpdateItemOutput = await this.getDocumentClient().update(params).promise();
+    protected async nativeUpdate(params: UpdateItemInput): Promise<UpdateItemOutput> {
+        const result: UpdateItemOutput = await this.getDocumentClient().updateItem(params);
         logger.info("Item Updated",result);
         return result;
     }
 
-    protected async nativeDelete(params: DocumentClient.DeleteItemInput): Promise<DocumentClient.DeleteItemOutput> {
-        const result: DocumentClient.DeleteItemOutput = await this.getDocumentClient().delete(params).promise();
+    protected async nativeDelete(params: DeleteItemInput): Promise<DeleteItemOutput> {
+        const result: DeleteItemOutput = await this.getDocumentClient().deleteItem(params);
         logger.info("Item Delete",result);
         return result;
     }
@@ -783,7 +787,7 @@ export abstract class DynamoDAO {
      * @protected
      * @returns Promise<DocumentClient.PutItemInput>
      */
-    protected async getCreateTemplate<T extends Entity>(obj: T): Promise<DocumentClient.PutItemInput> {
+    protected async getCreateTemplate<T extends Entity>(obj: T): Promise<PutItemInput> {
         await obj.validate();
         const now = new Date().toISOString();
         let newItem: any = {};
@@ -832,8 +836,7 @@ export abstract class DynamoDAO {
     protected async getUpdateTemplate(
         pk: DynamoKeyPair,
         sk: DynamoKeyPair,
-        items: EntityAttribute[],
-        type: string = "SET"): Promise<DocumentClient.UpdateItemInput> {
+        items: EntityAttribute[]): Promise<UpdateItemInput> {
 
         const now = new Date().toISOString();
         let updateExpression: string[] = [];
@@ -868,8 +871,8 @@ export abstract class DynamoDAO {
 
         return {
             Key: {
-                [pk.keyName] : pk.keyValue,
-                [sk.keyName] : sk.keyValue
+                [pk.keyName] : { S: pk.keyValue },
+                [sk.keyName] : { S: sk.keyValue }
             },
             TableName: this.getTableName(),
             ReturnConsumedCapacity: "TOTAL",
@@ -928,21 +931,21 @@ export abstract class DynamoDAO {
     // }
 
     protected async create<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<any> {
-        const itemInput:DocumentClient.PutItemInput = await this.getCreateTemplate(obj);
+        const itemInput:PutItemInput = await this.getCreateTemplate(obj);
         return this.nativeCreate(itemInput);
     }
 
     protected async update(pk: DynamoKeyPair,
                            sk: DynamoKeyPair,
                            items: EntityAttribute[]): Promise<any> {
-        const itemInput:DocumentClient.UpdateItemInput = await this.getUpdateTemplate(pk, sk, items);
+        const itemInput:UpdateItemInput = await this.getUpdateTemplate(pk, sk, items);
         return this.nativeUpdate(itemInput);
     }
 
     protected async delete(pk: DynamoKeyPair,
                            sk: DynamoKeyPair): Promise<ServiceResponse> {
         const serviceResponse: ServiceResponse = new ServiceResponse();
-        const itemInput:DocumentClient.DeleteItemInput = await this.getDeleteParams(pk, sk);
+        const itemInput:DeleteItemInput = await this.getDeleteParams(pk, sk);
         let deleteItemOutput = await this.nativeDelete(itemInput);
         if (!deleteItemOutput.Attributes) {
             serviceResponse.statusCode = 404;
@@ -960,10 +963,10 @@ export abstract class DynamoDAO {
                       sk: DynamoKeyPair,
                       fieldName: string,
                       isIncrement: boolean = true) {
-        const itemInput: DocumentClient.UpdateItemInput = {
+        const itemInput: UpdateItemInput = {
             Key: {
-                [pk.keyName]: pk.keyValue,
-                [sk.keyName]: sk.keyValue
+                [pk.keyName]: { S: pk.keyValue },
+                [sk.keyName]: { S: sk.keyValue }
             },
             ConditionExpression: `attribute_exists(#${pk.keyName})`,
             TableName: this.getTableName(),
@@ -973,7 +976,7 @@ export abstract class DynamoDAO {
             },
             UpdateExpression: `SET #${fieldName} = #${fieldName} ${isIncrement ? "+" : "-"} :inc`,
             ExpressionAttributeValues: {
-                ":inc": 1
+                ":inc": { N: "1" }
             }
         }
 
@@ -1008,7 +1011,7 @@ export abstract class DynamoDAO {
         sk: DynamoKeyPair,
         items: EntityAttribute[],
         validate: boolean = true,
-        type: string = "SET"): Promise<DocumentClient.UpdateItemInput> {
+        type: string = "SET"): Promise<UpdateItemInput> {
 
         const now = new Date().toISOString();
         let updateExpression: string[] = [];
@@ -1040,8 +1043,8 @@ export abstract class DynamoDAO {
 
         return {
             Key: {
-                [pk.keyName] : pk.keyValue,
-                [sk.keyName] : sk.keyValue
+                [pk.keyName] : { S: pk.keyValue },
+                [sk.keyName] : { S: sk.keyValue }
             },
             TableName: this.getTableName(),
             ReturnConsumedCapacity: "TOTAL",
@@ -1062,12 +1065,12 @@ export abstract class DynamoDAO {
     protected async getDeleteParams(
         pk: DynamoKeyPair,
         sk: DynamoKeyPair,
-        conditionalFields?: string[]): Promise<DocumentClient.DeleteItemInput> {
+        conditionalFields?: string[]): Promise<DeleteItemInput> {
 
-        const param:DocumentClient.DeleteItemInput = {
+        const param:DeleteItemInput = {
             Key: {
-                [pk.keyName] : pk.keyValue,
-                [sk.keyName] : sk.keyValue
+                [pk.keyName] : { S: pk.keyValue },
+                [sk.keyName] : { S: sk.keyValue }
             },
             TableName: this.getTableName(),
             ReturnValues: "ALL_OLD",
@@ -1088,7 +1091,7 @@ export abstract class DynamoDAO {
         return param;
     }
 
-    public async transaction(transactionItems: TransactionItem[]): Promise<DocumentClient.TransactWriteItemsOutput> {
+    public async transaction(transactionItems: TransactionItem[]): Promise<TransactWriteItemsOutput> {
         const _txn:TransactWriteItemsInput = {
             TransactItems: []
         };
@@ -1113,12 +1116,12 @@ export abstract class DynamoDAO {
             }
         }
 
-        const dynamoResponse: DocumentClient.TransactWriteItemsOutput = await this.client.transactWrite(_txn).promise();
+        const dynamoResponse: TransactWriteItemsOutput = await this.client.transactWriteItems(_txn);
         logger.info("Transaction Response", dynamoResponse);
         return dynamoResponse;
     }
 
-    protected mapResponse(dynamoResult: DocumentClient.QueryOutput, accessPattern: AccessPattern): ServiceResponse {
+    protected mapResponse(dynamoResult: QueryOutput, accessPattern: AccessPattern): ServiceResponse {
         let result = new ServiceResponse();
         if (!dynamoResult) {
             throw new DAOException("Dynamo Service Failed", 500, dynamoResult);
@@ -1128,7 +1131,8 @@ export abstract class DynamoDAO {
                     result.addData(item);
                 }
                 if (dynamoResult.LastEvaluatedKey) {
-                    result.nextToken = dynamoResult.LastEvaluatedKey[accessPattern.sortKeyExpression.keyName];
+                    let lastEvaluatedKeyElement = dynamoResult.LastEvaluatedKey[accessPattern.sortKeyExpression.keyName];
+                    result.nextToken = lastEvaluatedKeyElement ? lastEvaluatedKeyElement.S : undefined;
                     // Base 64 Encode the Token 
                     logger.debug("Next token in raw format is " + result.nextToken);
                     result.nextToken = Buffer.from(result.nextToken, 'utf8').toString('base64')  
@@ -1139,7 +1143,7 @@ export abstract class DynamoDAO {
         return result;
     }
 
-    protected async mapProjectionExpressions(queryData: DocumentClient.QueryInput, fields?: string[]): Promise<void> {
+    protected async mapProjectionExpressions(queryData: QueryInput, fields?: string[]): Promise<void> {
         if (fields && fields.length > 0) {
             const attributes = fields.map(f => `#${f}`);
             queryData.ProjectionExpression = attributes.join(",");
@@ -1155,7 +1159,7 @@ export abstract class DynamoDAO {
         return !limit || limit > DynamoDAO.MAX_LIMIT ? DynamoDAO.MAX_LIMIT : limit;
     }
 
-    protected getQueryInputTemplate(limit?: number, sortAscending: boolean = true): DocumentClient.QueryInput {
+    protected getQueryInputTemplate(limit?: number, sortAscending: boolean = true): QueryInput {
         return {
             TableName: this.getTableName(),
             Limit: DynamoDAO.getLimit(limit),
@@ -1188,13 +1192,13 @@ export abstract class DynamoDAO {
     }
 
     protected async batchGet(batchGetItemInput: BatchGetItemInput) {
-        const response: DocumentClient.BatchGetItemOutput = await this.client.batchGet(batchGetItemInput).promise();
+        const response: BatchGetItemOutput = await this.client.batchGetItem(batchGetItemInput);
         return response.Responses[this.getTableName()];
     }
 
     protected async findByPrimaryKey(pk: string,
                                      entityType: string,
-                                     queryOptions: QueryOptions = new QueryOptions()): Promise<DocumentClient.QueryInput> {
+                                     queryOptions: QueryOptions = new QueryOptions()): Promise<QueryInput> {
         let accessPattern = AccessPattern.create(
             new PartitionKeyExpression("pk", QueryExpressionOperator.EQ, DynamoDAO.createKey(entityType, pk)),
             new SortKeyExpression("sk", QueryExpressionOperator.EQ, DynamoDAO.createKey(entityType, pk))

@@ -39,6 +39,10 @@ describe("DAO Query suite", function () {
         let serviceResponse = await studentDAO.findStudentAndTheirTests(studentId);
     })
 
+    it("should describe a table", async () => {
+        let serviceResponse = await studentDAO.getTableMetaData();
+    })
+
     it("should get the most current Students", async () => {
         let daoResponse: ServiceResponse = await studentDAO.findLatest();
         expect(daoResponse.getData().length).to.eq(50);

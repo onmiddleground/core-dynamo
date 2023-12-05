@@ -17,11 +17,10 @@ import {
     TransactionItem,
     TransactionType
 } from "../db/dynamo/DynamoDAO";
-import {BatchGetItemInput, DocumentClient} from "aws-sdk/clients/dynamodb";
 import {ServiceResponse} from "../models";
 import assert = require("assert");
 import dayjs = require("dayjs");
-
+import { BatchGetItemInput, PutItemInput } from '@aws-sdk/client-dynamodb';
 const KSUID = require('ksuid');
 
 export class StudentAccessPatternDefinition {
@@ -167,7 +166,7 @@ export class StudentDAO extends DynamoDAO {
     }
 
     async txnCreateStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        const itemInput:DocumentClient.PutItemInput = await this.getCreateTemplate(obj);
+        const itemInput:PutItemInput = await this.getCreateTemplate(obj);
         const transactionItem: TransactionItem = new TransactionItem(itemInput,TransactionType.PUT);
         return super.transaction([transactionItem]);
     }
