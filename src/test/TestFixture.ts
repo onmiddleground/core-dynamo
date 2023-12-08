@@ -15,10 +15,10 @@ import {
     TransactionType
 } from "../DynamoDAO";
 import {IsNotEmpty, IsNumber, validate} from "class-validator";
-import {DocumentClient} from "aws-sdk/clients/dynamodb";
 import logger from "../logger";
 import {ServiceResponse} from "../models";
 import {StudentAccessPattern, StudentEntity} from "./StudentFixture";
+import {UpdateItemOutput} from "@aws-sdk/client-dynamodb";
 
 export class TestAccessPattern {
     public static STUDENT_TYPE: string = "ST";
@@ -147,12 +147,12 @@ export class TestDAO extends DynamoDAO {
             const accessPattern = TestAccessPattern.testId(testId);
             const attributes: EntityAttribute[] = await TestEntity.forUpdate(testName, passingMark);
 
-            let queryInput = await this.getUpdateParams(
+            let queryInput = await this.getUpdateTemplate(
                 new DynamoKeyPair(accessPattern.partitionKeyExpression.keyName, accessPattern.partitionKeyExpression.value1),
                 new DynamoKeyPair(accessPattern.sortKeyExpression.keyName, accessPattern.sortKeyExpression.value1),
                 attributes
             );
-            const result:DocumentClient.UpdateItemOutput = await this.nativeUpdate(queryInput);
+            const result:UpdateItemOutput = await this.nativeUpdate(queryInput);
             logger.info("Update Test Details Complete", result.ConsumedCapacity);
             serviceResponse.statusCode = 200;
             serviceResponse.message = JSON.stringify(result.Attributes);

@@ -15,24 +15,26 @@ describe("DAO Create, Update, Delete suite", function () {
     this.timeout(0);
     const tableName: string = "dynamoo-test-db";
     const testDomain: string = "@gmail.com"; // Just fake a domain name
-    // let dynamoDbOptions: DynamoOptions =
-    // dynamoDbOptions.enableLocal();
     let studentDAO: StudentDAO;
     let testDAO: TestDAO;
+    const host: string = "localhost";
+    const port: number = 4566;
     let dynamoTools: DynamoTools = new DynamoTools(tableName,{
-        endpoint: "http://localhost:4566",
+        endpoint: `http://${host}:${port}`,
         region: "us-east-1"
     });
+    let dynamoDbOptions = new DynamoDBOptions(tableName);
+    dynamoDbOptions.enableLocal(host, port);
 
     beforeEach(async () => {
-        await dynamoTools.createTable();
+        await dynamoTools.createTable(true);
         await dynamoTools.seedData(jsonData);
         studentDAO = new StudentDAO(dynamoDbOptions);
         testDAO = new TestDAO(dynamoDbOptions);
     });
 
     afterEach(async () => {
-        await dynamoTools.deleteTable();
+        // await dynamoTools.deleteTable();
     });
 
     it("just load seeded data", async () => {});
