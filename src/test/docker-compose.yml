@@ -8,11 +8,3 @@ services:
     volumes:
       - "./dynamodb_data:/home/dynamodblocal/data"
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
-
-#networks:
-#  default:
-#    external:
-#      name: dynamoo-network
-
-# Make sure to create the network
-#   docker network create dynamoo-network
