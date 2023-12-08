@@ -1,5 +1,5 @@
 import {DynamoTools} from "@onmiddleground/dynamo-tools";
-import {DynamoDBOptions, Entity, QueryOptions} from "../db/dynamo/DynamoDAO";
+import {DynamoDBOptions, Entity, QueryOptions} from "../DynamoDAO";
 import {StudentDAO, StudentEntity} from "./StudentFixture";
 import {TestDAO} from "./TestFixture";
 import {ServiceResponse} from "../models";

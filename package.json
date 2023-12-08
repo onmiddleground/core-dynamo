@@ -20,7 +20,7 @@
   "author": "Gary Waddell",
   "license": "ISC",
   "dependencies": {
-    "@onmiddleground/dynamo-tools": "^1.0.5",
+    "@onmiddleground/dynamo-tools": "^1.1.0",
     "class-validator": "^0.14.0",
     "dayjs": "^1.10.5",
     "@aws-sdk/client-dynamodb": "^3.454.0"
@@ -30,11 +30,11 @@
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^10.0.1",
     "@types/node": "^18.14.0",
-    "@types/sinon": "^10.0.13",
+    "@types/sinon": "^17.0.2",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "mocha": "^10.2.0",
-    "sinon": "^15.0.1",
+    "sinon": "^17.0.1",
     "source-map-support": "^0.5.21",
     "ts-loader": "^9.4.2",
     "ts-node": "^10.8.2",

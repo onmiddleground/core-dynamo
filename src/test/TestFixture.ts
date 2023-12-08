@@ -13,7 +13,7 @@ import {
     SortKeyExpression,
     TransactionItem,
     TransactionType
-} from "../db/dynamo/DynamoDAO";
+} from "../DynamoDAO";
 import {IsNotEmpty, IsNumber, validate} from "class-validator";
 import {DocumentClient} from "aws-sdk/clients/dynamodb";
 import logger from "../logger";

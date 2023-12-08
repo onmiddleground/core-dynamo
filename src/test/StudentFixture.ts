@@ -16,7 +16,7 @@ import {
     SortKeyExpression,
     TransactionItem,
     TransactionType
-} from "../db/dynamo/DynamoDAO";
+} from "../DynamoDAO";
 import {ServiceResponse} from "../models";
 import assert = require("assert");
 import dayjs = require("dayjs");

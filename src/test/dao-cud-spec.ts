@@ -1,5 +1,5 @@
-import {DynamoTools} from "@onmiddleground/dynamo-tools";
-import {DynamoDBOptions} from "../db/dynamo/DynamoDAO";
+import {DynamoTools,DynamoOptions} from "@onmiddleground/dynamo-tools";
+import {DynamoDBOptions} from "../DynamoDAO";
 import {StudentDAO, StudentEntity} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
 import {ServiceResponse, ValidationException} from "../models";
@@ -13,13 +13,16 @@ chai.use(chaiAsPromised);
 
 describe("DAO Create, Update, Delete suite", function () {
     this.timeout(0);
-    const tableName: string = "students-test-db";
+    const tableName: string = "dynamoo-test-db";
     const testDomain: string = "@gmail.com"; // Just fake a domain name
-    let dynamoDbOptions: DynamoDBOptions = new DynamoDBOptions(tableName);
-    dynamoDbOptions.enableLocal();
+    // let dynamoDbOptions: DynamoOptions =
+    // dynamoDbOptions.enableLocal();
     let studentDAO: StudentDAO;
     let testDAO: TestDAO;
-    let dynamoTools: DynamoTools = new DynamoTools(dynamoDbOptions.tableName, dynamoDbOptions);
+    let dynamoTools: DynamoTools = new DynamoTools(tableName,{
+        endpoint: "http://localhost:4566",
+        region: "us-east-1"
+    });
 
     beforeEach(async () => {
         await dynamoTools.createTable();

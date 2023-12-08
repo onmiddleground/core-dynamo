@@ -2,10 +2,10 @@
 // Please convert to a default import, and re-run aws-sdk-js-codemod.
 // Transformation of DocumentClient named import from deep path is unsupported in aws-sdk-js-codemod.
 // Please convert to a default import, and re-run aws-sdk-js-codemod.
-import logger from "../../logger";
-import {DAOException} from "../DAOException";
+import logger from "./logger";
+import {DAOException} from "./DAOException";
 import {isDate, isEmail, isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
-import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "../../models";
+import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "./models";
 import * as Assert from "assert";
 import {
     AttributeValue,
