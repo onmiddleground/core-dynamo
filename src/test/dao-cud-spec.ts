@@ -1,11 +1,10 @@
-import {DynamoTools,DynamoOptions} from "@onmiddleground/dynamo-tools";
+import {DynamoTools} from "@onmiddleground/dynamo-tools";
 import {DynamoDBOptions} from "../DynamoDAO";
 import {StudentDAO, StudentEntity} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
 import {ServiceResponse, ValidationException} from "../models";
 
 const jsonData = require("./data.json");
-
 const chai = require("chai");
 const chaiAsPromised = require('chai-as-promised');
 const expect = chai.expect;

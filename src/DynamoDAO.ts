@@ -644,13 +644,18 @@ export abstract class DynamoDAO {
 
     protected buildExpressionAttributes(queryInput: QueryInput, expression: DynamoExpression, nextPageToken?: string) {
         queryInput.ExpressionAttributeNames["#" + expression.keyName] = expression.keyName;
+
         if (expression instanceof SortKeyExpression && nextPageToken) {
+            queryInput.ExpressionAttributeValues[":token"] = <AttributeValue>{};
             queryInput.ExpressionAttributeValues[":token"].S = nextPageToken;
         } else {
             if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
+                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = <AttributeValue>{};
                 queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"].S = expression.value1;
+                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = <AttributeValue>{};
                 queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"].S = expression.value2;
             } else {
+                queryInput.ExpressionAttributeValues[":" + expression.keyName] = <AttributeValue>{};
                 queryInput.ExpressionAttributeValues[":" + expression.keyName].S = expression.value1;
             }
         }
