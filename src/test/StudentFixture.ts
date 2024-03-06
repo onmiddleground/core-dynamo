@@ -64,7 +64,6 @@ export class StudentAccessPatternDefinition {
             skKey
         );
     }
-
 }
 
 export class StudentAccessPattern {
@@ -153,15 +152,6 @@ export class StudentDAO extends DynamoDAO {
     }
 
     async createStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        // const id = KSUID.randomSync().string;
-        // let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
-        // obj.setPk(accessPatternDefinition.pk);
-        // obj.setSk(accessPatternDefinition.sk);
-        // obj.setType(StudentAccessPattern.TYPE);
-        // accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id,obj.getRegisteredDate());
-        // obj.setGSI1Pk(accessPatternDefinition.pk);
-        // obj.setGSI1Sk(accessPatternDefinition.sk)
-        // obj.setId(id);
         return super.create(obj, validate, true);
     }
 
