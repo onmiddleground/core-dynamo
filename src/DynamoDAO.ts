@@ -285,12 +285,14 @@ export abstract class Entity {
             const keys = Object.keys(data);
             keys.map(key => {
                 const entityAttribute: EntityAttribute = entity.getAttributeUsingShortName(key);
-                
+
                 if (entityAttribute) {
-                    t[entityAttribute.columnName] = data[key];
+                    t[entityAttribute.columnName] = data[key]["S"];
                     if (entityAttribute.getType() === DynamoAttributeType.NUMBER) {
                         if (assignDefaultOnNulls && !data[key]) {
                             t[entityAttribute.columnName] = 0;  // default for numbers
+                        } else {
+                            t[entityAttribute.columnName] = data[key]["N"];  // default for numbers
                         }
                     }
                     if (entityAttribute.getType() === DynamoAttributeType.MAP) {
