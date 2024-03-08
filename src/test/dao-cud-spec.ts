@@ -2,7 +2,7 @@ import {DynamoTools} from "@onmiddleground/dynamo-tools";
 import {DynamoDBOptions} from "../DynamoDAO";
 import {StudentDAO, StudentEntity} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
-import {ServiceResponse, ValidationException} from "../models";
+import {DynamoServiceResponse, ValidationException} from "../models";
 
 const jsonData = require("./data.json");
 const chai = require("chai");
@@ -118,19 +118,19 @@ describe("DAO Create, Update, Delete suite", function () {
 
         it("should update the name and passmark of a test", async () => {
             const testId: string = "1xAdvQ2Y6Gy2koPWdllIAMwWapc";
-            let response:ServiceResponse = await testDAO.updateTestDetails(testId, "Me is Updated",99);
+            let response:DynamoServiceResponse = await testDAO.updateTestDetails(testId, "Me is Updated",99);
             expect(response.statusCode).to.be.eq(200);
         });
 
         it("should delete a test", async () => {
             const testId: string = "1xAdvQ2Y6Gy2koPWdllIAMwWapc";
-            let response:ServiceResponse = await testDAO.deleteTest(testId);
+            let response:DynamoServiceResponse = await testDAO.deleteTest(testId);
             expect(response.statusCode).to.eq(200);
         });
 
         it("should fail delete when the test is not found", async () => {
             const testId: string = "missingid";
-            let response:ServiceResponse = await testDAO.deleteTest(testId);
+            let response:DynamoServiceResponse = await testDAO.deleteTest(testId);
             expect(response.statusCode).to.eq(404);
         });
 

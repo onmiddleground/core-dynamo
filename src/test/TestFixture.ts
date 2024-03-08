@@ -16,7 +16,7 @@ import {
 } from "../DynamoDAO";
 import {IsNotEmpty, IsNumber, validate} from "class-validator";
 import logger from "../logger";
-import {ServiceResponse} from "../models";
+import {DynamoServiceResponse} from "../models";
 import {StudentAccessPattern, StudentEntity} from "./StudentFixture";
 import {UpdateItemOutput} from "@aws-sdk/client-dynamodb";
 
@@ -95,7 +95,7 @@ export class TestDAO extends DynamoDAO {
      * @param studentId
      * @param queryOptions
      */
-    async findStudentTests(studentId: string, queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<ServiceResponse[]> {
+    async findStudentTests(studentId: string, queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<DynamoServiceResponse[]> {
         const promises: any[] = [];
         const accessPatternStudentTests = TestAccessPattern.studentTests(studentId);
         const accessPatternTests = TestAccessPattern.tests();
@@ -112,7 +112,7 @@ export class TestDAO extends DynamoDAO {
      *
      * @param studentId
      */
-    async getStudentDetailsAndTests(studentId: string): Promise<ServiceResponse> {
+    async getStudentDetailsAndTests(studentId: string): Promise<DynamoServiceResponse> {
         const accessPatterns: AccessPattern[] = [StudentAccessPattern.id(studentId), TestAccessPattern.studentTests(studentId)];
 
         let promises: any[] = [];
@@ -121,8 +121,8 @@ export class TestDAO extends DynamoDAO {
             promises.push(this.query(qi, ap));
         }
 
-        const responses: ServiceResponse[] = await Promise.all(promises);
-        const response: ServiceResponse = new ServiceResponse();
+        const responses: DynamoServiceResponse[] = await Promise.all(promises);
+        const response: DynamoServiceResponse = new DynamoServiceResponse();
         if (responses) {
             for (let sr of responses) {
                 let converted = await Entity.convert(StudentEntity, sr);
@@ -134,14 +134,14 @@ export class TestDAO extends DynamoDAO {
         return response;
     }
 
-    async findTestLikes(testId: string, queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<ServiceResponse> {
+    async findTestLikes(testId: string, queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<DynamoServiceResponse> {
         const accessPattern = TestAccessPattern.testLikes(testId);
         let query = await this.findByAccessPattern(accessPattern, queryOptions);
         return this.query(query, accessPattern);
     }
 
-    async updateTestDetails(testId: string, testName: string, passingMark: number): Promise<ServiceResponse> {
-        const serviceResponse: ServiceResponse = new ServiceResponse();
+    async updateTestDetails(testId: string, testName: string, passingMark: number): Promise<DynamoServiceResponse> {
+        const serviceResponse: DynamoServiceResponse = new DynamoServiceResponse();
 
         try {
             const accessPattern = TestAccessPattern.testId(testId);
@@ -164,8 +164,8 @@ export class TestDAO extends DynamoDAO {
         return serviceResponse;
     }
 
-    async deleteTest(testId: string): Promise<ServiceResponse> {
-        let serviceResponse: ServiceResponse = new ServiceResponse();
+    async deleteTest(testId: string): Promise<DynamoServiceResponse> {
+        let serviceResponse: DynamoServiceResponse = new DynamoServiceResponse();
         try {
             const accessPattern = TestAccessPattern.testId(testId);
             serviceResponse = await this.delete(
@@ -180,8 +180,8 @@ export class TestDAO extends DynamoDAO {
         return serviceResponse;
     }
 
-    async likeTest(obj: LikeTest, validate: boolean = true): Promise<ServiceResponse> {
-        const response = new ServiceResponse();
+    async likeTest(obj: LikeTest, validate: boolean = true): Promise<DynamoServiceResponse> {
+        const response = new DynamoServiceResponse();
         try {
             let accessPatternDefinition = TestAccessPattern.likeStudentTestDefinition(obj.getTestId(), obj.getStudentId());
 

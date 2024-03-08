@@ -5,7 +5,7 @@
 import logger from "./logger";
 import {DAOException} from "./DAOException";
 import {isDate, isEmail, isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
-import {AuthException, NotFoundException, ServiceResponse, ValidationException} from "./models";
+import {AuthException, NotFoundException, DynamoServiceResponse, ValidationException} from "./models";
 import * as Assert from "assert";
 import {
     AttributeValue,
@@ -286,11 +286,11 @@ export abstract class Entity {
         return result;
     }
 
-    static async convert(E: any, serviceResponse: ServiceResponse,
+    static async convert(E: any, serviceResponse: DynamoServiceResponse,
                   deleteKeyColumns = true,
                   onRecord?: any,
-                  assignDefaultOnNulls: boolean = true): Promise<ServiceResponse> {
-        let converted: ServiceResponse;
+                  assignDefaultOnNulls: boolean = true): Promise<DynamoServiceResponse> {
+        let converted: DynamoServiceResponse;
         const entity = new E;
         let items = serviceResponse.getData().map(data => {
             let t = Object.create({});
@@ -345,9 +345,9 @@ export abstract class Entity {
         }
 
         if (items) {
-            converted = ServiceResponse.createSuccess(items,serviceResponse.nextToken);
+            converted = DynamoServiceResponse.createSuccess(items,serviceResponse.nextToken);
         } else {
-            converted = ServiceResponse.createEmpty();
+            converted = DynamoServiceResponse.createEmpty();
         }
         return converted;
     }
@@ -716,7 +716,7 @@ export abstract class DynamoDAO {
         return this.nativeUpdate(template);
     }
 
-    protected hasResults(dynamoResult: ServiceResponse): boolean {
+    protected hasResults(dynamoResult: DynamoServiceResponse): boolean {
         let result: boolean = false;
         if (dynamoResult && dynamoResult.getData() && dynamoResult.getData().length > 0) {
             logger.info(`DB results were found. Size ${dynamoResult.getData().length}`);
@@ -757,7 +757,7 @@ export abstract class DynamoDAO {
         return this.dynamoDBOptions.tableName;
     }
 
-    protected async query(params: QueryInput, accessPattern: AccessPattern): Promise<ServiceResponse> {
+    protected async query(params: QueryInput, accessPattern: AccessPattern): Promise<DynamoServiceResponse> {
         let results;
         try {
             logger.info(params);
@@ -963,8 +963,8 @@ export abstract class DynamoDAO {
     }
 
     protected async delete(pk: DynamoKeyPair,
-                           sk: DynamoKeyPair): Promise<ServiceResponse> {
-        const serviceResponse: ServiceResponse = new ServiceResponse();
+                           sk: DynamoKeyPair): Promise<DynamoServiceResponse> {
+        const serviceResponse: DynamoServiceResponse = new DynamoServiceResponse();
         const itemInput:DeleteItemInput = await this.getDeleteParams(pk, sk);
         let deleteItemOutput = await this.nativeDelete(itemInput);
         if (!deleteItemOutput.Attributes) {
@@ -1141,8 +1141,8 @@ export abstract class DynamoDAO {
         return dynamoResponse;
     }
 
-    protected mapResponse(dynamoResult: QueryOutput, accessPattern: AccessPattern): ServiceResponse {
-        let result = new ServiceResponse();
+    protected mapResponse(dynamoResult: QueryOutput, accessPattern: AccessPattern): DynamoServiceResponse {
+        let result = new DynamoServiceResponse();
         if (!dynamoResult) {
             throw new DAOException("Dynamo Service Failed", 500, dynamoResult);
         } else {

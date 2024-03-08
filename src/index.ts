@@ -29,6 +29,6 @@ export {
     ValidationException,
     ServiceException,
     DAOResponse,
-    ServiceResponse,
+    DynamoServiceResponse,
     HttpResponse
 } from "./models";

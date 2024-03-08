@@ -17,7 +17,7 @@ import {
     TransactionItem,
     TransactionType
 } from "../DynamoDAO";
-import {ServiceResponse} from "../models";
+import {DynamoServiceResponse} from "../models";
 import assert = require("assert");
 import dayjs = require("dayjs");
 import { BatchGetItemInput, PutItemInput } from '@aws-sdk/client-dynamodb';
@@ -123,7 +123,7 @@ export class StudentAccessPattern {
 }
 
 export class StudentDAO extends DynamoDAO {
-    async findLatest(queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<ServiceResponse> {
+    async findLatest(queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<DynamoServiceResponse> {
         const accessPattern = StudentAccessPattern.all();
         const query = await this.findByAccessPattern(accessPattern, queryOptions);
         return this.query(query, accessPattern);
