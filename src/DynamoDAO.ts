@@ -274,10 +274,22 @@ export abstract class Entity {
         return this.getAttributes().get(entityColumn.fullName);
     }
 
-    static async convert<E extends Entity, T extends Object>(E: any, serviceResponse: ServiceResponse,
-                                                             deleteKeyColumns = true,
-                                                             onRecord?: any,
-                                                             assignDefaultOnNulls: boolean = true): Promise<ServiceResponse> {
+    static processMap(mapElement: any): Promise<any> {
+        let result: any = {};
+        const keys = Object.keys(mapElement);
+        let typeKey: any;
+        for (let key of keys) {
+            typeKey = Object.keys(mapElement[key])[0];
+            result[key] = mapElement[key][typeKey];
+        }
+
+        return result;
+    }
+
+    static async convert(E: any, serviceResponse: ServiceResponse,
+                  deleteKeyColumns = true,
+                  onRecord?: any,
+                  assignDefaultOnNulls: boolean = true): Promise<ServiceResponse> {
         let converted: ServiceResponse;
         const entity = new E;
         let items = serviceResponse.getData().map(data => {
@@ -297,7 +309,8 @@ export abstract class Entity {
                     }
                     if (entityAttribute.getType() === DynamoAttributeType.MAP) {
                         try {
-                            t[entityAttribute.columnName] = JSON.parse(data[key]);
+                            t[entityAttribute.columnName] = Entity.processMap(data[key]["M"]);
+                            // t[entityAttribute.columnName] = data[key]["M"];
                         } catch (err) {
                             // leave the default if we can't parse the Map
                         }
