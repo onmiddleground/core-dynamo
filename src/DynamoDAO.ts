@@ -1201,7 +1201,10 @@ export abstract class DynamoDAO {
         for (let ap of accessPatterns) {
             queryData = {};
             queryData[ap.partitionKeyExpression.keyName] = ap.partitionKeyExpression.value1;
-            queryData[ap.sortKeyExpression.keyName] = ap.sortKeyExpression.value1;
+            if (ap.sortKeyExpression?.keyName) {
+                queryData[ap.sortKeyExpression.keyName] = ap.sortKeyExpression.value1;
+            }
+
             template.RequestItems[this.getTableName()].Keys.push(queryData);
         }
 
