@@ -83,23 +83,18 @@ export class DynamoDBOptions {
 }
 
 export enum DynamoAttributeType {
-    STRING, NUMBER, DATE, BINARY, STRING_SET, NUMBER_SET, BINARY_SET, MAP, LIST, NULL, BOOLEAN
+    STRING= "S",
+    NUMBER = "N",
+    DATE = "D",
+    BINARY = "B",
+    STRING_SET = "SS",
+    NUMBER_SET = "NS",
+    BINARY_SET = "BS",
+    MAP = "M",
+    LIST = "L",
+    NULL = "Null",
+    BOOLEAN = "Boolean"
 }
-
-
-// getDynamoAttributeType(dynamoEntityType: DynamoAttributeType): string {
-//     let result = "S";
-//     switch (dynamoEntityType) {
-//         case DynamoAttributeType.NUMBER: result = "N"; break;
-//         case DynamoAttributeType.BINARY: result = "B"; break;
-//         case DynamoAttributeType.BOOLEAN: result = "BOOL"; break;
-//         case DynamoAttributeType.NUMBER: result = "N"; break;
-//     }
-//
-//     return result;
-// }
-
-
 
 export class EntityAttribute {
     @IsNotEmpty()
@@ -818,7 +813,7 @@ export abstract class DynamoDAO {
             } else if (attr.columnAlias === EntityColumnDefinitions.CREATED_AT.shortAliasName ||
                 attr.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName) {
                 if (!attr.value) {
-                    attr.value = now;
+                    attr.value = attr.value.toISOString();
                 } else if (attr.value instanceof Date) {
                     attr.value = attr.value.toISOString();
                 }
@@ -826,9 +821,9 @@ export abstract class DynamoDAO {
                 attr.value = attr.value;
             }
             if (attr.value instanceof Date) {
-                newItem[attr.columnAlias] = attr.value.toISOString();
+                newItem[attr.columnAlias][attr.getType()] = attr.value.toISOString();
             } else {
-                newItem[attr.columnAlias] = attr.value;
+                newItem[attr.columnAlias][attr.getType()] = attr.value;
             }
         });
 
