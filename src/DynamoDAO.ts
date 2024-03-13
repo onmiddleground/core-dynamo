@@ -821,13 +821,15 @@ export abstract class DynamoDAO {
                 attr.value = attr.value;
             }
             if (attr.value instanceof Date) {
-                newItem[attr.columnAlias][attr.getType()] = attr.value.toISOString();
+                newItem[attr.columnAlias] = {
+                    [attr.getType()] : attr.value.toISOString()
+                };
             } else {
-                newItem[attr.columnAlias][attr.getType()] = attr.value;
+                newItem[attr.columnAlias] = {
+                    [attr.getType()] : attr.value
+                };
             }
         });
-
-        ;
 
         return {
             TableName: this.getTableName(),
