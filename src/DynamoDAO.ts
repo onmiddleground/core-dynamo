@@ -793,7 +793,16 @@ export abstract class DynamoDAO {
 
 
     /************************************************  QUERY TEMPLATES ************************************************/
-
+    protected convertToMapType(element: EntityAttribute) {
+        let result: any = {"M" : {}};
+        const keys = Object.keys(element.value);
+        for (let key of keys) {
+            result["M"][key] = {
+                "S" : element.value[key]
+            }
+        }
+        return result;
+    }
     /**
      * Returns a Dynamo Template you can use to perform a Put.  You can update the template with your own custom code
      * after you get the template.
@@ -824,6 +833,8 @@ export abstract class DynamoDAO {
                 newItem[attr.columnAlias] = {
                     [attr.getType()] : attr.value.toISOString()
                 };
+            } else if (attr.entityColumn?.type === "M") {
+                newItem[attr.columnAlias] = this.convertToMapType(attr);
             } else {
                 newItem[attr.columnAlias] = {
                     [attr.getType()] : attr.value
