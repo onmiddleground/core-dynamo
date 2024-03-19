@@ -760,7 +760,8 @@ export abstract class DynamoDAO {
                 .query(params);
             logger.info(results, "Returned Query Data");
         } catch (err) {
-            logger.error("Error in Dynamo Query", params);
+            logger.error({ err }, "Failed Query!");
+            logger.error({params}, "Error in Dynamo Query");
             if (err.code === "ResourceNotFoundException") {
                 throw new NotFoundException("Resource Not Found", 404);
             }
