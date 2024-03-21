@@ -848,7 +848,7 @@ export abstract class DynamoDAO {
             Item: newItem,
             ConditionExpression: ` attribute_not_exists(#${EntityColumnDefinitions.PK.shortAliasName})`,
             ExpressionAttributeNames: {
-                ["#" + obj.getPk().columnAlias]: obj.getPk().value,
+                ["#" + obj.getPk().columnAlias]: obj.getPk().columnAlias,
             }
         }
     }
