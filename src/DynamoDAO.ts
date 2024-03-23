@@ -321,7 +321,7 @@ export abstract class Entity {
                             delete t[entityAttribute.columnName];
                     }
                 } else {
-                    logger.error(`Could not locate entity attribute on Thread Entity using key ${key}`);
+                    logger.error(`Could not locate attribute on Entity using key ${key}`);
                 }
             });
 
