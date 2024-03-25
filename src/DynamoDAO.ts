@@ -60,12 +60,20 @@ export class EntityColumn {
 
 export class AccessPatternDefinition {
     pk: string;
-    sk: string | Record<string, string>;
+    sk: string;
+    lsi: Record<string, string>;
+
     constructor(pk: string, sk?: string);
     constructor(pk: string, sk?: Record<string, string>);
     constructor(pk: string, sk?: string | Record<string, string>) {
         this.pk = pk;
-        this.sk = sk;
+        if (typeof sk === "object") {
+            this.lsi = sk;
+        } else if (typeof sk === "string") {
+            this.sk = sk;
+        } else {
+            throw new Error("sk must be a string or an LSI parameter (alias/value)");
+        }
     }
 }
 
