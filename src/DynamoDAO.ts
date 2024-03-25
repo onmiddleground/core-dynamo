@@ -17,7 +17,6 @@ import {
     PutItemInput,
     QueryInput,
     QueryOutput,
-    TransactWriteItemsCommandInput,
     TransactWriteItemsInput,
     TransactWriteItemsOutput,
     UpdateItemInput,
@@ -60,9 +59,16 @@ export class EntityColumn {
 }
 
 export class AccessPatternDefinition {
-    constructor(public readonly pk: string, public readonly sk?: string) {
+    pk: string;
+    sk: string | Record<string, string>;
+    constructor(pk: string, sk?: string);
+    constructor(pk: string, sk?: Record<string, string>);
+    constructor(pk: string, sk?: string | Record<string, string>) {
+        this.pk = pk;
+        this.sk = sk;
     }
 }
+
 
 export class DynamoDBOptions {
     public readonly tableName: string;
@@ -465,7 +471,11 @@ export abstract class Entity {
         Assert.ok(accessPatternDefinition !== null, "accessPatternDefinition is required");
         const now = new Date();
         this.getAttribute(EntityColumnDefinitions.PK).value = accessPatternDefinition.pk;
-        this.getAttribute(EntityColumnDefinitions.SK).value = accessPatternDefinition.sk;
+        if (typeof accessPatternDefinition.sk === "object") {
+            logger.warn("Your sort key is defined as an object, make sure you register and set the appropriate LSI value");
+        } else {
+            this.getAttribute(EntityColumnDefinitions.SK).value = accessPatternDefinition.sk;
+        }
         this.getAttribute(EntityColumnDefinitions.CREATED_AT).value = now.toISOString();
         this.getAttribute(EntityColumnDefinitions.UPDATED_AT).value = now.toISOString();
         this.getAttribute(EntityColumnDefinitions.TYPE).value = type;
@@ -885,7 +895,7 @@ export abstract class DynamoDAO {
             }
             updateExpression.push(` #${attr.columnAlias} = :${attr.columnAlias} `);
             expressionAttributeNames[`#${attr.columnAlias}`] = attr.columnAlias;
-            expressionAttributeValues[`:${attr.columnAlias}`] = attr.value;
+            expressionAttributeValues[`:${attr.columnAlias}`] = { "S" : attr.value };
         })
 
         const hasUpdatedDefinition:EntityAttribute = items.find(item => item.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName);
@@ -893,7 +903,7 @@ export abstract class DynamoDAO {
             const now = new Date().toISOString();
             updateExpression.push(` #${EntityColumnDefinitions.UPDATED_AT.shortAliasName} = :${EntityColumnDefinitions.UPDATED_AT.shortAliasName} `);
             expressionAttributeNames[`#${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = EntityColumnDefinitions.UPDATED_AT.shortAliasName;
-            expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = now;
+            expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = { "S" : now };
         }
 
         let conditionExpr: string = ` attribute_exists(#${pk.keyName}) and attribute_exists(#${sk.keyName}) `;
