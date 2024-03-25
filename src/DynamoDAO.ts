@@ -71,8 +71,6 @@ export class AccessPatternDefinition {
             this.lsi = sk;
         } else if (typeof sk === "string") {
             this.sk = sk;
-        } else {
-            throw new Error("sk must be a string or an LSI parameter (alias/value)");
         }
     }
 }
