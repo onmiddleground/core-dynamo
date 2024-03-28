@@ -62,11 +62,11 @@ export class AccessPatternDefinition {
     pk: string;
     sk: string;
     lsi: Record<string, string>;
-    indexName?: string;
+    indexName?: EntityColumn;
 
-    constructor(pk: string, sk?: string, indexName?: string);
-    constructor(pk: string, sk?: Record<string, string>, indexName?: string);
-    constructor(pk: string, sk?: string | Record<string, string>, indexName?: string) {
+    constructor(pk: string, sk?: string, indexName?: EntityColumn);
+    constructor(pk: string, sk?: Record<string, string>, indexName?: EntityColumn);
+    constructor(pk: string, sk?: string | Record<string, string>, indexName?: EntityColumn) {
         this.pk = pk;
         if (typeof sk === "object") {
             this.lsi = sk;
