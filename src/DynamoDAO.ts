@@ -856,7 +856,7 @@ export abstract class DynamoDAO {
                 newItem[attr.columnAlias] = this.convertToMapType(attr);
             } else {
                 newItem[attr.columnAlias] = {
-                    [attr.getType()] : attr.value
+                    [attr.getType()] : ""+attr.value
                 };
             }
         });
