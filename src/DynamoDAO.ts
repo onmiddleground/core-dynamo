@@ -884,51 +884,59 @@ export abstract class DynamoDAO {
         pk: DynamoKeyPair,
         sk: DynamoKeyPair,
         items: EntityAttribute[]): Promise<UpdateItemInput> {
-
-        const now = new Date().toISOString();
-        let updateExpression: string[] = [];
-        let expressionAttributeNames: any = {
-            ["#"+pk.keyName] : pk.keyName,
-            ["#"+sk.keyName] : sk.keyName
-        };
-        let expressionAttributeValues: any = {};
-
-        items.forEach((attr) => {
-            if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
-                if (!attr.value) {
-                    attr.value = now;
-                } else {
-                    attr.value = attr.value.toISOString();
-                }
-            }
-            updateExpression.push(` #${attr.columnAlias} = :${attr.columnAlias} `);
-            expressionAttributeNames[`#${attr.columnAlias}`] = attr.columnAlias;
-            expressionAttributeValues[`:${attr.columnAlias}`] = { "S" : attr.value };
-        })
-
-        const hasUpdatedDefinition:EntityAttribute = items.find(item => item.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName);
-        if (!hasUpdatedDefinition) {
-            const now = new Date().toISOString();
-            updateExpression.push(` #${EntityColumnDefinitions.UPDATED_AT.shortAliasName} = :${EntityColumnDefinitions.UPDATED_AT.shortAliasName} `);
-            expressionAttributeNames[`#${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = EntityColumnDefinitions.UPDATED_AT.shortAliasName;
-            expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = { "S" : now };
-        }
-
-        let conditionExpr: string = ` attribute_exists(#${pk.keyName}) and attribute_exists(#${sk.keyName}) `;
-
-        return {
-            Key: {
-                [pk.keyName] : { S: pk.keyValue },
-                [sk.keyName] : { S: sk.keyValue }
-            },
-            TableName: this.getTableName(),
-            ReturnConsumedCapacity: "TOTAL",
-            UpdateExpression: " SET " + updateExpression.join(", "),
-            ConditionExpression: conditionExpr,
-            ExpressionAttributeValues: expressionAttributeValues,
-            ExpressionAttributeNames: expressionAttributeNames
-        }
-    }
+  
+          const now = new Date().toISOString();
+          let updateExpression: string[] = [];
+          let expressionAttributeNames: any = {
+              ["#"+pk.keyName] : pk.keyName,
+              ["#"+sk.keyName] : sk.keyName
+          };
+          let expressionAttributeValues: any = {};
+  
+          items.forEach((attr) => {
+              if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
+                  if (!attr.value) {
+                      attr.value = now;
+                  } else {
+                      attr.value = attr.value.toISOString();
+                  }
+              }
+              updateExpression.push(` #${attr.columnAlias} = :${attr.columnAlias} `);
+              expressionAttributeNames[`#${attr.columnAlias}`] = attr.columnAlias;
+  
+              if (attr.value instanceof Date) {
+                  expressionAttributeValues[`:${attr.columnAlias}`] = { [attr.getType()] : attr.value.toISOString() };
+              } else if (attr.entityColumn?.type === "M") {
+                  expressionAttributeValues[`:${attr.columnAlias}`] = this.convertToMapType(attr);
+              } else {
+                  expressionAttributeValues[`:${attr.columnAlias}`] = { [attr.getType()] : ""+attr.value };
+              }
+          })
+  
+          const hasUpdatedDefinition:EntityAttribute | undefined = items.find(item => item.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName);
+          
+          if (!hasUpdatedDefinition) {
+              const now = new Date().toISOString();
+              updateExpression.push(` #${EntityColumnDefinitions.UPDATED_AT.shortAliasName} = :${EntityColumnDefinitions.UPDATED_AT.shortAliasName} `);
+              expressionAttributeNames[`#${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = EntityColumnDefinitions.UPDATED_AT.shortAliasName;
+              expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = { "S" : now };
+          }
+  
+          let conditionExpr: string = ` attribute_exists(#${pk.keyName}) and attribute_exists(#${sk.keyName}) `;
+  
+          return {
+              Key: {
+                  [pk.keyName] : { S: pk.keyValue },
+                  [sk.keyName] : { S: sk.keyValue }
+              },
+              TableName: this.getTableName(),
+              ReturnConsumedCapacity: "TOTAL",
+              UpdateExpression: " SET " + updateExpression.join(", "),
+              ConditionExpression: conditionExpr,
+              ExpressionAttributeValues: expressionAttributeValues,
+              ExpressionAttributeNames: expressionAttributeNames
+          }
+      }
 
     // protected async getCreateParams<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<DocumentClient.PutItemInput> {
     //     if (validate) {
