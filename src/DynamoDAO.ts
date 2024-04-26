@@ -814,13 +814,15 @@ export abstract class DynamoDAO {
     /************************************************  QUERY TEMPLATES ************************************************/
     protected convertToMapType(element: EntityAttribute) {
         let result: any = {"M" : {}};
-        const keys = Object.keys(element.value);
-        for (let key of keys) {
-            result["M"][key] = {
-                "S" : element.value[key]
+        if (element.value) {
+            const keys = Object.keys(element.value);
+            for (let key of keys) {
+                result["M"][key] = {
+                    "S" : element.value[key]
+                }
             }
         }
-        return result;
+        return result;    
     }
     /**
      * Returns a Dynamo Template you can use to perform a Put.  You can update the template with your own custom code
