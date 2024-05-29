@@ -578,9 +578,10 @@ export class QueryOptions {
     constructor(public fields: any[] = [], public limit: number = 100, public sortAscending: boolean = true, nextPageToken?: string) {
         this.fields = fields;
         this.limit = limit;
-        this.sortAscending = sortAscending;
         if (nextPageToken) {
             this.setNextPageToken(nextPageToken);
+        } else {
+            this.sortAscending = sortAscending;
         }
     }
 
