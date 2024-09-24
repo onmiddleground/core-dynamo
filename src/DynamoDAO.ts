@@ -589,7 +589,7 @@ export class QueryOptions {
     }
 
     setNextPageToken(nextToken: string) {
-        this.nextPageToken = Buffer.from(nextToken, 'base64').toString('utf8');
+        this.nextPageToken = JSON.parse(Buffer.from(nextToken, 'base64').toString('utf8'));
     }
 }
 
@@ -649,43 +649,33 @@ export abstract class DynamoDAO {
         return true;
     }
 
-    protected buildKeyConditionExpression(queryInput: QueryInput, expression: DynamoExpression, nextPageToken?: string) {
+    protected buildKeyConditionExpression(queryInput: QueryInput, expression: DynamoExpression) {
         if (queryInput.KeyConditionExpression) {
             queryInput.KeyConditionExpression += " and ";
         } else {
             queryInput.KeyConditionExpression = "";
         }
 
-        const nextTokenOperator = queryInput.ScanIndexForward ? QueryExpressionOperator.GT : QueryExpressionOperator.LT;
-        if (expression instanceof SortKeyExpression && nextPageToken) {
-            queryInput.KeyConditionExpression += ` #${expression.keyName} ${nextTokenOperator} :token `;
+        if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
+            queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
+        } else if (expression.comparator === QueryExpressionOperator.BETWEEN) {
+            queryInput.KeyConditionExpression += " #" + expression.keyName + " " + expression.comparator + " :" + expression.keyName + "1 " + " and :" + expression.keyName + "2";
         } else {
-            if (expression.comparator === QueryExpressionOperator.BEGINS_WITH) {
-                queryInput.KeyConditionExpression += (expression.comparator + " (#" + expression.keyName) + ", :" + expression.keyName + ") ";
-            } else if (expression.comparator === QueryExpressionOperator.BETWEEN) {
-                queryInput.KeyConditionExpression += " #" + expression.keyName + " " + expression.comparator + " :" + expression.keyName + "1 " + " and :" + expression.keyName + "2";
-            } else {
-                queryInput.KeyConditionExpression += "#" + expression.keyName + " " + expression.comparator + " :" + expression.keyName;
-            }
+            queryInput.KeyConditionExpression += "#" + expression.keyName + " " + expression.comparator + " :" + expression.keyName;
         }
+
     }
 
-    protected buildExpressionAttributes(queryInput: QueryInput, expression: DynamoExpression, nextPageToken?: string) {
+    protected buildExpressionAttributes(queryInput: QueryInput, expression: DynamoExpression) {
         queryInput.ExpressionAttributeNames["#" + expression.keyName] = expression.keyName;
-
-        if (expression instanceof SortKeyExpression && nextPageToken) {
-            queryInput.ExpressionAttributeValues[":token"] = <AttributeValue>{};
-            queryInput.ExpressionAttributeValues[":token"].S = nextPageToken;
+        if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
+            queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = <AttributeValue>{};
+            queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"].S = expression.value1;
+            queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = <AttributeValue>{};
+            queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"].S = expression.value2;
         } else {
-            if (expression.comparator.toLowerCase() === QueryExpressionOperator.BETWEEN) {
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"] = <AttributeValue>{};
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "1"].S = expression.value1;
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"] = <AttributeValue>{};
-                queryInput.ExpressionAttributeValues[":" + expression.keyName + "2"].S = expression.value2;
-            } else {
-                queryInput.ExpressionAttributeValues[":" + expression.keyName] = <AttributeValue>{};
-                queryInput.ExpressionAttributeValues[":" + expression.keyName].S = expression.value1;
-            }
+            queryInput.ExpressionAttributeValues[":" + expression.keyName] = <AttributeValue>{};
+            queryInput.ExpressionAttributeValues[":" + expression.keyName].S = expression.value1;
         }
     }
 
@@ -699,14 +689,13 @@ export abstract class DynamoDAO {
     }
 
     protected async buildQuery(expr: DynamoExpression,
-                               queryInput: QueryInput,
-                               nextPageToken?: string) {
+                               queryInput: QueryInput) {
         let errors = await expr.validate();
         if (errors.length > 0) {
             throw new ValidationException("DynamoExpression Failed Validation", errors, 400);
         }
-        this.buildKeyConditionExpression(queryInput, expr, nextPageToken);
-        this.buildExpressionAttributes(queryInput, expr, nextPageToken);
+        this.buildKeyConditionExpression(queryInput, expr);
+        this.buildExpressionAttributes(queryInput, expr);
     }
 
     protected async buildExpression(accessPattern: AccessPattern, queryInput: QueryInput, nextPageToken?: string) {
@@ -715,9 +704,18 @@ export abstract class DynamoDAO {
         }
         // Add the custom expressions
         this.initQueryInput(queryInput);
-        await this.buildQuery(accessPattern.partitionKeyExpression, queryInput, nextPageToken);
+        await this.buildQuery(accessPattern.partitionKeyExpression, queryInput);
         if (accessPattern.sortKeyExpression) {
-            await this.buildQuery(accessPattern.sortKeyExpression, queryInput, nextPageToken);
+            await this.buildQuery(accessPattern.sortKeyExpression, queryInput);
+        }
+
+        if (nextPageToken) {
+            const exclusiveStartKey: Record<string, any> = {
+                [accessPattern.partitionKeyExpression.keyName]: { S: accessPattern.partitionKeyExpression.value1 },  // S indicates String type in DynamoDB
+                [accessPattern.sortKeyExpression.keyName]: { S: accessPattern.sortKeyExpression.value1 }  // This assumes the sort key is also a string
+            };
+
+            queryInput.ExclusiveStartKey = exclusiveStartKey;
         }
     }
 
@@ -1189,7 +1187,7 @@ export abstract class DynamoDAO {
                 }
                 if (dynamoResult.LastEvaluatedKey) {
                     let lastEvaluatedKeyElement = dynamoResult.LastEvaluatedKey[accessPattern.sortKeyExpression.keyName];
-                    result.nextToken = lastEvaluatedKeyElement ? lastEvaluatedKeyElement.S : undefined;
+                    result.nextToken = lastEvaluatedKeyElement ? JSON.stringify(lastEvaluatedKeyElement) : undefined;
                     // Base 64 Encode the Token 
                     logger.debug("Next token in raw format is " + result.nextToken);
                     result.nextToken = Buffer.from(result.nextToken, 'utf8').toString('base64')  
