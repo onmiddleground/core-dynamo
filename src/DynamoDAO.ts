@@ -1,11 +1,5 @@
-// Transformation of DocumentClient named import from deep path is unsupported in aws-sdk-js-codemod.
-// Please convert to a default import, and re-run aws-sdk-js-codemod.
-// Transformation of DocumentClient named import from deep path is unsupported in aws-sdk-js-codemod.
-// Please convert to a default import, and re-run aws-sdk-js-codemod.
-import logger from "./logger";
 import {DAOException} from "./DAOException";
-import {isDate, isEmail, isNotEmpty, IsNotEmpty, validate, ValidateIf} from "class-validator";
-import {AuthException, NotFoundException, DynamoServiceResponse, ValidationException} from "./models";
+import {AuthException, DynamoServiceResponse, NotFoundException, ValidationException} from "./models";
 import * as Assert from "assert";
 import {
     AttributeValue,
@@ -23,6 +17,8 @@ import {
     UpdateItemOutput,
 } from '@aws-sdk/client-dynamodb';
 import assert = require("assert");
+import dayjs = require("dayjs");
+import logger from "./logger";
 
 export enum TransactionType {
     PUT, UPDATE, DELETE, CONDITION_EXPRESSION
@@ -31,6 +27,10 @@ export enum TransactionType {
 export class TransactionItem {
     constructor(public readonly queryInput: any,
                 public readonly type: TransactionType) {}
+}
+
+const isNotEmpty = (value: any) => {
+    return typeof value === 'string' && value?.trim().length > 0;
 }
 
 export class EntityColumn {
@@ -111,10 +111,8 @@ export enum DynamoAttributeType {
 }
 
 export class EntityAttribute {
-    @IsNotEmpty()
     public readonly entityColumn: EntityColumn;
 
-    @IsNotEmpty()
     public _value: any;
 
     constructor(entityColumn: EntityColumn, value?: any) {
@@ -178,6 +176,11 @@ export const isRequired = (key: string): EntityValidation => {
     }
 }
 
+export const isEmail = (str: string) => {
+    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailPattern.test(str);
+}
+
 export const isValidEmail = (key: string): EntityValidation => {
     return {
         getMessage(): string {
@@ -188,6 +191,10 @@ export const isValidEmail = (key: string): EntityValidation => {
             return isNotEmpty(value) && isEmail(value);
         }
     }
+}
+
+export const isDate = (value: any) => {
+    return dayjs(value).isValid();
 }
 
 export const isValidDate = (key: string): EntityValidation => {
@@ -296,12 +303,12 @@ export abstract class Entity {
     }
 
     static async convert(E: any, serviceResponse: DynamoServiceResponse,
-                  deleteKeyColumns = true,
-                  onRecord?: any,
-                  assignDefaultOnNulls: boolean = true): Promise<DynamoServiceResponse> {
+                         deleteKeyColumns = true,
+                         onRecord?: any,
+                         assignDefaultOnNulls: boolean = true): Promise<DynamoServiceResponse> {
         let converted: DynamoServiceResponse;
         const entity = new E;
-        let items = serviceResponse.getData().map(data => {
+        let items = serviceResponse.getData().map((data: any) => {
             let t = Object.create({});
             const keys = Object.keys(data);
             keys.map(key => {
@@ -344,7 +351,7 @@ export abstract class Entity {
 
         // Determine if a filter is applied
         if (items) {
-            items = items.filter(i => {
+            items = items.filter((i: any) => {
                 if (onRecord) {
                     return onRecord(i);
                 } else {
@@ -506,17 +513,12 @@ export enum QueryExpressionOperator {
 }
 
 export abstract class DynamoExpression {
-    @IsNotEmpty()
     public comparator: QueryExpressionOperator;   // begins_with, between etc
 
-    @IsNotEmpty()
     public keyName?: string;
 
-    @IsNotEmpty()
     public value1: string;
 
-    @ValidateIf(o => o.comparator.toLowerCase() === 'between')
-    @IsNotEmpty({message: "value2 is required when using the between operator"})
     public value2: string;
 
     constructor(keyName: string, operator: QueryExpressionOperator, value1: string) {
@@ -526,14 +528,14 @@ export abstract class DynamoExpression {
     }
 
     public validate() {
-        return validate(this);
+        return isNotEmpty(this.value1) ? [] : ["Missing required value1"];
     }
 }
 
 export class PartitionKeyExpression extends DynamoExpression {}
 
 export class SortKeyExpression extends DynamoExpression {
-    value2: string;
+    // value2: string;
 
     constructor(keyName: string, operator: QueryExpressionOperator, value1: string, value2?: string) {
         super(keyName, operator, value1);
@@ -549,8 +551,8 @@ export class DynamoKeyPair {
 
 export class AccessPattern {
     private constructor(public readonly partitionKeyExpression: PartitionKeyExpression,
-                public readonly sortKeyExpression?: SortKeyExpression,
-                public readonly indexName?: string) {
+                        public readonly sortKeyExpression?: SortKeyExpression,
+                        public readonly indexName?: string) {
     }
 
     static create(partitionKeyExpression: PartitionKeyExpression): AccessPattern;
@@ -565,16 +567,16 @@ export class AccessPattern {
     }
 
     static createUsingPk(partitionKeyExpression: PartitionKeyExpression,
-                  indexName? : string):AccessPattern {
+                         indexName? : string):AccessPattern {
         return new AccessPattern(partitionKeyExpression, undefined, indexName);
     }
 
 }
 
 export class QueryOptions {
-    
+
     private nextPageToken: string;
-    
+
     constructor(public fields: any[] = [], public limit: number = 100, public sortAscending: boolean = true, nextPageToken?: string) {
         this.fields = fields;
         this.limit = limit;
@@ -690,7 +692,7 @@ export abstract class DynamoDAO {
 
     protected async buildQuery(expr: DynamoExpression,
                                queryInput: QueryInput) {
-        let errors = await expr.validate();
+        let errors = expr.validate();
         if (errors.length > 0) {
             throw new ValidationException("DynamoExpression Failed Validation", errors, 400);
         }
@@ -698,7 +700,7 @@ export abstract class DynamoDAO {
         this.buildExpressionAttributes(queryInput, expr);
     }
 
-    protected async buildExpression(accessPattern: AccessPattern, queryInput: QueryInput, nextPageToken?: string) {
+    protected async buildExpression(accessPattern: AccessPattern, queryInput: QueryInput, nextPageToken?: any) {
         if (!accessPattern) {
             return;
         }
@@ -710,12 +712,7 @@ export abstract class DynamoDAO {
         }
 
         if (nextPageToken) {
-            const exclusiveStartKey: Record<string, any> = {
-                [accessPattern.partitionKeyExpression.keyName]: { S: accessPattern.partitionKeyExpression.value1 },  // S indicates String type in DynamoDB
-                [accessPattern.sortKeyExpression.keyName]: { S: accessPattern.sortKeyExpression.value1 }  // This assumes the sort key is also a string
-            };
-
-            queryInput.ExclusiveStartKey = exclusiveStartKey;
+            queryInput.ExclusiveStartKey = nextPageToken;
         }
     }
 
@@ -775,7 +772,7 @@ export abstract class DynamoDAO {
             results = await this.getDocumentClient()
                 .query(params);
             logger.info(results, "Returned Query Data");
-        } catch (err) {
+        } catch (err: any) {
             logger.error({ err }, "Failed Query!");
             logger.error({params}, "Error in Dynamo Query");
             if (err.code === "ResourceNotFoundException") {
@@ -820,7 +817,7 @@ export abstract class DynamoDAO {
                 }
             }
         }
-        return result;    
+        return result;
     }
     /**
      * Returns a Dynamo Template you can use to perform a Put.  You can update the template with your own custom code
@@ -884,59 +881,59 @@ export abstract class DynamoDAO {
         pk: DynamoKeyPair,
         sk: DynamoKeyPair,
         items: EntityAttribute[]): Promise<UpdateItemInput> {
-  
-          const now = new Date().toISOString();
-          let updateExpression: string[] = [];
-          let expressionAttributeNames: any = {
-              ["#"+pk.keyName] : pk.keyName,
-              ["#"+sk.keyName] : sk.keyName
-          };
-          let expressionAttributeValues: any = {};
-  
-          items.forEach((attr) => {
-              if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
-                  if (!attr.value) {
-                      attr.value = now;
-                  } else {
-                      attr.value = attr.value.toISOString();
-                  }
-              }
-              updateExpression.push(` #${attr.columnAlias} = :${attr.columnAlias} `);
-              expressionAttributeNames[`#${attr.columnAlias}`] = attr.columnAlias;
-  
-              if (attr.value instanceof Date) {
-                  expressionAttributeValues[`:${attr.columnAlias}`] = { [attr.getType()] : attr.value.toISOString() };
-              } else if (attr.entityColumn?.type === "M") {
-                  expressionAttributeValues[`:${attr.columnAlias}`] = this.convertToMapType(attr);
-              } else {
-                  expressionAttributeValues[`:${attr.columnAlias}`] = { [attr.getType()] : ""+attr.value };
-              }
-          })
-  
-          const hasUpdatedDefinition:EntityAttribute | undefined = items.find(item => item.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName);
-          
-          if (!hasUpdatedDefinition) {
-              const now = new Date().toISOString();
-              updateExpression.push(` #${EntityColumnDefinitions.UPDATED_AT.shortAliasName} = :${EntityColumnDefinitions.UPDATED_AT.shortAliasName} `);
-              expressionAttributeNames[`#${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = EntityColumnDefinitions.UPDATED_AT.shortAliasName;
-              expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = { "S" : now };
-          }
-  
-          let conditionExpr: string = ` attribute_exists(#${pk.keyName}) and attribute_exists(#${sk.keyName}) `;
-  
-          return {
-              Key: {
-                  [pk.keyName] : { S: pk.keyValue },
-                  [sk.keyName] : { S: sk.keyValue }
-              },
-              TableName: this.getTableName(),
-              ReturnConsumedCapacity: "TOTAL",
-              UpdateExpression: " SET " + updateExpression.join(", "),
-              ConditionExpression: conditionExpr,
-              ExpressionAttributeValues: expressionAttributeValues,
-              ExpressionAttributeNames: expressionAttributeNames
-          }
-      }
+
+        const now = new Date().toISOString();
+        let updateExpression: string[] = [];
+        let expressionAttributeNames: any = {
+            ["#"+pk.keyName] : pk.keyName,
+            ["#"+sk.keyName] : sk.keyName
+        };
+        let expressionAttributeValues: any = {};
+
+        items.forEach((attr) => {
+            if (attr.getType() === DynamoAttributeType.DATE || attr.value instanceof Date) {
+                if (!attr.value) {
+                    attr.value = now;
+                } else {
+                    attr.value = attr.value.toISOString();
+                }
+            }
+            updateExpression.push(` #${attr.columnAlias} = :${attr.columnAlias} `);
+            expressionAttributeNames[`#${attr.columnAlias}`] = attr.columnAlias;
+
+            if (attr.value instanceof Date) {
+                expressionAttributeValues[`:${attr.columnAlias}`] = { [attr.getType()] : attr.value.toISOString() };
+            } else if (attr.entityColumn?.type === "M") {
+                expressionAttributeValues[`:${attr.columnAlias}`] = this.convertToMapType(attr);
+            } else {
+                expressionAttributeValues[`:${attr.columnAlias}`] = { [attr.getType()] : ""+attr.value };
+            }
+        })
+
+        const hasUpdatedDefinition:EntityAttribute | undefined = items.find(item => item.columnAlias === EntityColumnDefinitions.UPDATED_AT.shortAliasName);
+
+        if (!hasUpdatedDefinition) {
+            const now = new Date().toISOString();
+            updateExpression.push(` #${EntityColumnDefinitions.UPDATED_AT.shortAliasName} = :${EntityColumnDefinitions.UPDATED_AT.shortAliasName} `);
+            expressionAttributeNames[`#${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = EntityColumnDefinitions.UPDATED_AT.shortAliasName;
+            expressionAttributeValues[`:${EntityColumnDefinitions.UPDATED_AT.shortAliasName}`] = { "S" : now };
+        }
+
+        let conditionExpr: string = ` attribute_exists(#${pk.keyName}) and attribute_exists(#${sk.keyName}) `;
+
+        return {
+            Key: {
+                [pk.keyName] : { S: pk.keyValue },
+                [sk.keyName] : { S: sk.keyValue }
+            },
+            TableName: this.getTableName(),
+            ReturnConsumedCapacity: "TOTAL",
+            UpdateExpression: " SET " + updateExpression.join(", "),
+            ConditionExpression: conditionExpr,
+            ExpressionAttributeValues: expressionAttributeValues,
+            ExpressionAttributeNames: expressionAttributeNames
+        }
+    }
 
     // protected async getCreateParams<T extends Entity>(obj: T, validate: boolean = true, useSkInCondition?: boolean): Promise<DocumentClient.PutItemInput> {
     //     if (validate) {
@@ -1015,9 +1012,9 @@ export abstract class DynamoDAO {
     }
 
     protected async incDecCount(pk: DynamoKeyPair,
-                      sk: DynamoKeyPair,
-                      fieldName: string,
-                      isIncrement: boolean = true) {
+                                sk: DynamoKeyPair,
+                                fieldName: string,
+                                isIncrement: boolean = true) {
         const itemInput: UpdateItemInput = {
             Key: {
                 [pk.keyName]: { S: pk.keyValue },
@@ -1134,8 +1131,8 @@ export abstract class DynamoDAO {
         let conditions: string[] = [];
         if (conditionalFields && conditionalFields.length > 0) {
             for (let cf of conditionalFields) {
-                 conditions.push(`attribute_exists(#${cf})`);
-                 param.ExpressionAttributeNames["#" + cf] = cf
+                conditions.push(`attribute_exists(#${cf})`);
+                param.ExpressionAttributeNames["#" + cf] = cf
             }
             if (conditions) {
                 param.ConditionExpression = conditions.join(" and ")
@@ -1186,11 +1183,9 @@ export abstract class DynamoDAO {
                     result.addData(item);
                 }
                 if (dynamoResult.LastEvaluatedKey) {
-                    let lastEvaluatedKeyElement = dynamoResult.LastEvaluatedKey[accessPattern.sortKeyExpression.keyName];
-                    result.nextToken = lastEvaluatedKeyElement ? JSON.stringify(lastEvaluatedKeyElement) : undefined;
-                    // Base 64 Encode the Token 
-                    logger.debug("Next token in raw format is " + result.nextToken);
-                    result.nextToken = Buffer.from(result.nextToken, 'utf8').toString('base64')  
+                    // Base 64 Encode the Token
+                    logger.debug("Next token in raw format is " + JSON.stringify(result.nextToken));
+                    result.nextToken = Buffer.from(JSON.stringify(dynamoResult.LastEvaluatedKey), 'utf8').toString('base64')
                     logger.debug("Next token Base64 Encoded as " + result.nextToken);
                 }
             }

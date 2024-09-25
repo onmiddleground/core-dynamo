@@ -1,6 +1,6 @@
 {
   "name": "@onmiddleground/core-dynamo",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Useful Dynamo Tools for development and testing",
   "main": "dist/index.js",
   "files": [
@@ -20,12 +20,11 @@
   "author": "Gary Waddell",
   "license": "ISC",
   "dependencies": {
-    "@onmiddleground/dynamo-tools": "^1.1.0",
-    "class-validator": "^0.14.0",
     "dayjs": "^1.10.5",
-    "@aws-sdk/client-dynamodb": "^3.454.0"
+    "@aws-sdk/client-dynamodb": "^3.658.0"
   },
   "devDependencies": {
+    "@onmiddleground/dynamo-tools": "^1.1.0",
     "@types/chai": "^4.3.4",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^10.0.1",
