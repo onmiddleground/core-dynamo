@@ -43,7 +43,7 @@ export class DAOResponse {
 export class DynamoServiceResponse {
     public statusCode: number;
     private data: any[] = [];
-    public nextToken?: string;
+    public nextToken?: string | any;
     public message?: string;
 
     static convert(daoResponse: DAOResponse): DynamoServiceResponse {
