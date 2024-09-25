@@ -14,7 +14,6 @@ import {
     TransactionItem,
     TransactionType
 } from "../DynamoDAO";
-import {IsNotEmpty, IsNumber, validate} from "class-validator";
 import logger from "../logger";
 import {DynamoServiceResponse} from "../models";
 import {StudentAccessPattern, StudentEntity} from "./StudentFixture";
@@ -225,10 +224,8 @@ export class TestAttributeDefinition {
 }
 
 export class LikeTest extends Entity {
-    @IsNotEmpty()
     private studentId: EntityAttribute;
 
-    @IsNotEmpty()
     private testId: EntityAttribute;
 
     private constructor() {
@@ -259,22 +256,13 @@ export class LikeTest extends Entity {
 }
 
 export class TestDTO {
-    @IsNotEmpty()
     name: string;
 
-    @IsNotEmpty()
-    @IsNumber()
     passingMark: number;
 
-    @IsNotEmpty()
-    @IsNumber()
     likeCount: number = 0;
 
     id: string;
-
-    validate() {
-        return validate(this);
-    }
 }
 
 export class TestEntity extends Entity {
