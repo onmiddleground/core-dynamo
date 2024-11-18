@@ -1,6 +1,4 @@
-import {DAOException} from "./db/DAOException";
-
-export {TransactionType, TransactionItem} from "./db/dynamo/DynamoDAO";
+export {TransactionType, TransactionItem} from "./DynamoDAO";
 export {
     DynamoDAO,
     EntityColumn,
@@ -21,10 +19,9 @@ export {
     isValidEmail,
     DynamoAttributeType,
     DynamoKeyPair
-} from "./db/dynamo/DynamoDAO";
-export { DAOException } from "./db/DAOException";
-export { Model, ModelAttribute } from "./db/dynamo/Model";
-
+} from "./DynamoDAO";
+export { DAOException } from "./DAOException";
+export { Model, ModelAttribute } from "./Model";
 export {
     AuthException,
     ConfigurationException,
@@ -32,6 +29,6 @@ export {
     ValidationException,
     ServiceException,
     DAOResponse,
-    ServiceResponse,
+    DynamoServiceResponse,
     HttpResponse
 } from "./models";

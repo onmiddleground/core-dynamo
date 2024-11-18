@@ -16,12 +16,11 @@ import {
     SortKeyExpression,
     TransactionItem,
     TransactionType
-} from "../db/dynamo/DynamoDAO";
-import {BatchGetItemInput, DocumentClient} from "aws-sdk/clients/dynamodb";
-import {ServiceResponse} from "../models";
+} from "../DynamoDAO";
+import {DynamoServiceResponse} from "../models";
 import assert = require("assert");
 import dayjs = require("dayjs");
-
+import { BatchGetItemInput, PutItemInput } from '@aws-sdk/client-dynamodb';
 const KSUID = require('ksuid');
 
 export class StudentAccessPatternDefinition {
@@ -65,7 +64,6 @@ export class StudentAccessPatternDefinition {
             skKey
         );
     }
-
 }
 
 export class StudentAccessPattern {
@@ -125,7 +123,7 @@ export class StudentAccessPattern {
 }
 
 export class StudentDAO extends DynamoDAO {
-    async findLatest(queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<ServiceResponse> {
+    async findLatest(queryOptions: QueryOptions = new QueryOptions([], 100, false)): Promise<DynamoServiceResponse> {
         const accessPattern = StudentAccessPattern.all();
         const query = await this.findByAccessPattern(accessPattern, queryOptions);
         return this.query(query, accessPattern);
@@ -154,20 +152,11 @@ export class StudentDAO extends DynamoDAO {
     }
 
     async createStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        // const id = KSUID.randomSync().string;
-        // let accessPatternDefinition = StudentAccessPatternDefinition.studentId(id);
-        // obj.setPk(accessPatternDefinition.pk);
-        // obj.setSk(accessPatternDefinition.sk);
-        // obj.setType(StudentAccessPattern.TYPE);
-        // accessPatternDefinition = StudentAccessPatternDefinition.creatingRegisteredDate(id,obj.getRegisteredDate());
-        // obj.setGSI1Pk(accessPatternDefinition.pk);
-        // obj.setGSI1Sk(accessPatternDefinition.sk)
-        // obj.setId(id);
         return super.create(obj, validate, true);
     }
 
     async txnCreateStudent(obj: StudentEntity, validate: boolean = true): Promise<any> {
-        const itemInput:DocumentClient.PutItemInput = await this.getCreateTemplate(obj);
+        const itemInput:PutItemInput = await this.getCreateTemplate(obj);
         const transactionItem: TransactionItem = new TransactionItem(itemInput,TransactionType.PUT);
         return super.transaction([transactionItem]);
     }

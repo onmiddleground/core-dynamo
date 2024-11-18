@@ -1,11 +1,10 @@
 import {DynamoTools} from "@onmiddleground/dynamo-tools";
-import {DynamoDBOptions} from "../db/dynamo/DynamoDAO";
+import {DynamoDBOptions} from "../DynamoDAO";
 import {StudentDAO, StudentEntity} from "./StudentFixture";
 import {LikeTest, TestDAO} from "./TestFixture";
-import {ServiceResponse, ValidationException} from "../models";
+import {DynamoServiceResponse, ValidationException} from "../models";
 
 const jsonData = require("./data.json");
-
 const chai = require("chai");
 const chaiAsPromised = require('chai-as-promised');
 const expect = chai.expect;
@@ -13,23 +12,28 @@ chai.use(chaiAsPromised);
 
 describe("DAO Create, Update, Delete suite", function () {
     this.timeout(0);
-    const tableName: string = "students-test-db";
+    const tableName: string = "dynamoo-test-db";
     const testDomain: string = "@gmail.com"; // Just fake a domain name
-    let dynamoDbOptions: DynamoDBOptions = new DynamoDBOptions(tableName);
-    dynamoDbOptions.enableLocal();
     let studentDAO: StudentDAO;
     let testDAO: TestDAO;
-    let dynamoTools: DynamoTools = new DynamoTools(dynamoDbOptions.tableName, dynamoDbOptions);
+    const host: string = "localhost";
+    const port: number = 4566;
+    let dynamoTools: DynamoTools = new DynamoTools(tableName,{
+        endpoint: `http://${host}:${port}`,
+        region: "us-east-1"
+    });
+    let dynamoDbOptions = new DynamoDBOptions(tableName);
+    dynamoDbOptions.enableLocal(host, port);
 
     beforeEach(async () => {
-        await dynamoTools.createTable();
+        await dynamoTools.createTable(true);
         await dynamoTools.seedData(jsonData);
         studentDAO = new StudentDAO(dynamoDbOptions);
         testDAO = new TestDAO(dynamoDbOptions);
     });
 
     afterEach(async () => {
-        await dynamoTools.deleteTable();
+        // await dynamoTools.deleteTable();
     });
 
     it("just load seeded data", async () => {});
@@ -114,19 +118,19 @@ describe("DAO Create, Update, Delete suite", function () {
 
         it("should update the name and passmark of a test", async () => {
             const testId: string = "1xAdvQ2Y6Gy2koPWdllIAMwWapc";
-            let response:ServiceResponse = await testDAO.updateTestDetails(testId, "Me is Updated",99);
+            let response:DynamoServiceResponse = await testDAO.updateTestDetails(testId, "Me is Updated",99);
             expect(response.statusCode).to.be.eq(200);
         });
 
         it("should delete a test", async () => {
             const testId: string = "1xAdvQ2Y6Gy2koPWdllIAMwWapc";
-            let response:ServiceResponse = await testDAO.deleteTest(testId);
+            let response:DynamoServiceResponse = await testDAO.deleteTest(testId);
             expect(response.statusCode).to.eq(200);
         });
 
         it("should fail delete when the test is not found", async () => {
             const testId: string = "missingid";
-            let response:ServiceResponse = await testDAO.deleteTest(testId);
+            let response:DynamoServiceResponse = await testDAO.deleteTest(testId);
             expect(response.statusCode).to.eq(404);
         });
 

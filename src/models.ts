@@ -40,42 +40,42 @@ export class DAOResponse {
     }
 }
 
-export class ServiceResponse {
+export class DynamoServiceResponse {
     public statusCode: number;
     private data: any[] = [];
     public nextToken?: string;
     public message?: string;
 
-    static convert(daoResponse: DAOResponse): ServiceResponse {
-        let serviceResponse = ServiceResponse.createEmpty();
+    static convert(daoResponse: DAOResponse): DynamoServiceResponse {
+        let serviceResponse = DynamoServiceResponse.createEmpty();
         if (!daoResponse || !daoResponse.getData() || daoResponse.getData().length === 0) {
             serviceResponse.statusCode = 204;
             serviceResponse.message = "No Data";
         } else {
-            serviceResponse = ServiceResponse.createSuccess(daoResponse.getData());
+            serviceResponse = DynamoServiceResponse.createSuccess(daoResponse.getData());
         }
         return serviceResponse;
     }
 
     // static createSuccess(items: any): ServiceResponse;
-    static createSuccess(items: any[], nextToken?: string): ServiceResponse {
-        const response = new ServiceResponse();
+    static createSuccess(items: any[], nextToken?: string): DynamoServiceResponse {
+        const response = new DynamoServiceResponse();
         response.statusCode = 200;
         response.data = items;
         response.nextToken = nextToken;
         return response;
     }
 
-    static createFailed(err: any): ServiceResponse {
-        const response = new ServiceResponse();
+    static createFailed(err: any): DynamoServiceResponse {
+        const response = new DynamoServiceResponse();
         response.statusCode = 500;
         response.message = err;
         response.data = [];
         return response;
     }
 
-    static createEmpty(): ServiceResponse {
-        const response = new ServiceResponse();
+    static createEmpty(): DynamoServiceResponse {
+        const response = new DynamoServiceResponse();
         response.statusCode = 200;
         response.data = [];
         return response;

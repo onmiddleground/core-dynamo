@@ -1,6 +1,6 @@
 {
   "name": "@onmiddleground/core-dynamo",
-  "version": "1.0.18",
+  "version": "1.2.2",
   "description": "Useful Dynamo Tools for development and testing",
   "main": "dist/index.js",
   "files": [
@@ -15,26 +15,25 @@
     "watch": "npm run clean && node ./node_modules/typescript/bin/tsc --watch",
     "test": "mocha -r ts-node/register src/**/*-spec.ts",
     "_publish:force": "npm run build && npm unpublish --force && npm publish",
-    "_publish": "npm run build && npm version patch && npm publish"
+    "_publish": "npm run build && npm publish"
   },
   "author": "Gary Waddell",
   "license": "ISC",
   "dependencies": {
-    "@onmiddleground/dynamo-tools": "^1.0.4",
-    "class-validator": "^0.14.0",
-    "dayjs": "^1.10.5"
+    "dayjs": "^1.10.5",
+    "@aws-sdk/client-dynamodb": "^3.658.0"
   },
   "devDependencies": {
+    "@onmiddleground/dynamo-tools": "^1.1.0",
     "@types/chai": "^4.3.4",
     "@types/chai-as-promised": "^7.1.5",
     "@types/mocha": "^10.0.1",
     "@types/node": "^18.14.0",
-    "@types/sinon": "^10.0.13",
-    "aws-sdk": "^2.1359.0",
+    "@types/sinon": "^17.0.2",
     "chai": "^4.3.7",
     "chai-as-promised": "^7.1.1",
     "mocha": "^10.2.0",
-    "sinon": "^15.0.1",
+    "sinon": "^17.0.1",
     "source-map-support": "^0.5.21",
     "ts-loader": "^9.4.2",
     "ts-node": "^10.8.2",
